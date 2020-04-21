@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "b-118": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
