@@ -2,8 +2,13 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using DSharpPlus.CommandsNext;
+using b_118.Commands;
+using DSharpPlus.EventArgs;
+using DSharpPlus.CommandsNext.Exceptions;
+using DSharpPlus.Entities;
+using DSharpPlus.Lavalink;
+using DSharpPlus.Net;
 
 namespace b_118
 {
@@ -11,7 +16,12 @@ namespace b_118
     {
         static DiscordClient discord;
         static string token;
-        static DSharpPlus.LogLevel logLevel;
+        static string lavalinkPassword;
+        static string lavalinkHostname;
+        static int lavalinkPort;
+        static LogLevel logLevel;
+        static CommandsNextExtension commands;
+        static LavalinkExtension lavalink;
 
         static void Main(string[] args)
         {
@@ -24,69 +34,133 @@ namespace b_118
 
             var configuration = builder.Build();
             token = configuration.GetSection("Token")["B-118"];
+            lavalinkHostname = configuration.GetSection("Lavalink")["Hostname"];
+            lavalinkPort = int.Parse(configuration.GetSection("Lavalink")["Port"]);
+            lavalinkPassword = configuration.GetSection("Lavalink")["Password"];
             switch (configuration.GetSection("Log")["Level"])
             {
                 case "Debug":
                     {
-                        logLevel = DSharpPlus.LogLevel.Debug;
+                        logLevel = LogLevel.Debug;
                         break;
                     }
                 case "Info":
                     {
-                        logLevel = DSharpPlus.LogLevel.Info;
+                        logLevel = LogLevel.Info;
                         break;
                     }
                 case "Warning":
                     {
-                        logLevel = DSharpPlus.LogLevel.Warning;
+                        logLevel = LogLevel.Warning;
                         break;
                     }
                 case "Error":
                     {
-                        logLevel = DSharpPlus.LogLevel.Error;
+                        logLevel = LogLevel.Error;
                         break;
                     }
                 case "Critical":
                     {
-                        logLevel = DSharpPlus.LogLevel.Critical;
+                        logLevel = LogLevel.Critical;
                         break;
                     }
                 default:
                     {
-                        logLevel = DSharpPlus.LogLevel.Info;
+                        logLevel = LogLevel.Info;
                         break;
                     }
             }
 
-            var serviceCollection = new ServiceCollection();
-            ConfigureServices(serviceCollection);
-            var serviceProvider = serviceCollection.BuildServiceProvider();
-
             MainAsync(args).ConfigureAwait(false).GetAwaiter().GetResult();
-        }
-
-        private static void ConfigureServices(IServiceCollection services)
-        {
-            services.AddLogging(configure => configure.AddConsole());
         }
 
         static async Task MainAsync(string[] args)
         {
-            discord = new DiscordClient(new DiscordConfiguration
+            var discordConfiguration = new DiscordConfiguration
             {
                 UseInternalLogHandler = true,
                 LogLevel = logLevel,
                 Token = token,
                 TokenType = TokenType.Bot
-            });
-
-            discord.MessageCreated += async e =>
-            {
-                if (e.Message.Content.ToLower().StartsWith("ping"))
-                    await e.Message.RespondAsync("pong");
             };
+
+            discord = new DiscordClient(discordConfiguration);
+
+            discord.ClientErrored += ClientErrored;
+
+            var commandsNextConfiguration = new CommandsNextConfiguration
+            {
+                StringPrefixes = new string[] {"b"},
+                EnableDms = true,
+                EnableMentionPrefix = true,
+                EnableDefaultHelp = true
+            };
+
+            commands = discord.UseCommandsNext(commandsNextConfiguration);
+            commands.CommandExecuted += CommandExecuted;
+            commands.CommandErrored += CommandErrored;
+            commands.RegisterCommands<BCommands>();
+            commands.RegisterCommands<BeatCommands>();
+
+            lavalink = discord.UseLavalink();
+
             await discord.ConnectAsync();
             await Task.Delay(-1);
+        }
+
+        public static ConnectionEndpoint GetLavalinkConnectionEndpoint()
+        {
+            return new ConnectionEndpoint { Hostname = lavalinkHostname, Port = lavalinkPort };
+        }
+
+        public static LavalinkConfiguration GetLavalinkConfiguration()
+        {
+            return new LavalinkConfiguration
+            {
+                RestEndpoint = GetLavalinkConnectionEndpoint(),
+                SocketEndpoint = GetLavalinkConnectionEndpoint(),
+                Password = lavalinkPassword
+            };
+        }
+
+        private static Task ClientErrored(ClientErrorEventArgs e)
+        {
+            e.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", "Exception occured", DateTime.Now, e.Exception);
+
+            return Task.CompletedTask;
+        }
+
+        private static Task CommandExecuted(CommandExecutionEventArgs e)
+        {
+            e.Context.Client.DebugLogger.LogMessage(LogLevel.Info, "B-118", $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'", DateTime.Now);
+
+            return Task.CompletedTask;
+        }
+
+        private static async Task CommandErrored(CommandErrorEventArgs e)
+        {
+            e.Context.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", $"{e.Context.User.Username} tried executing '{e.Command?.QualifiedName ?? "<unknown command>"}' but it errored.", DateTime.Now, e.Exception);
+
+            if (e.Exception is ChecksFailedException ex)
+            {
+                var emoji = DiscordEmoji.FromName(e.Context.Client, ":no_entry:");
+                
+                var embed = new DiscordEmbedBuilder
+                {
+                    Title = "Access denied",
+                    Description = $"{emoji} You do not have the permissions required to execute this command.",
+                    Color = new DiscordColor(0xFF0000) // red
+                };
+                await e.Context.RespondAsync("", embed: embed);
+            }
+            else if (e.Exception is InvalidOperationException exc)
+            {
+                await e.Context.RespondAsync(exc.Message);
+            }
+            else
+            {
+                await e.Context.RespondAsync("Something went wrong.");
+            }
         }
     }
 }
