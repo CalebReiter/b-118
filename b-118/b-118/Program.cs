@@ -9,6 +9,8 @@ using DSharpPlus.CommandsNext.Exceptions;
 using DSharpPlus.Entities;
 using DSharpPlus.Lavalink;
 using DSharpPlus.Net;
+using b_118.Exceptions;
+using b_118.Models;
 
 namespace b_118
 {
@@ -86,11 +88,32 @@ namespace b_118
 
             discord = new DiscordClient(discordConfiguration);
 
+            discord.Ready += async (ReadyEventArgs e) =>
+            {
+                await discord.UpdateStatusAsync(new DiscordActivity("The Bee Movie", ActivityType.Watching));
+            };
+
+            discord.GuildAvailable += async (GuildCreateEventArgs e) =>
+            {
+                GuildDetails.AddClientGuild(e.Client, e.Guild);
+            };
+
+            discord.MessageCreated += async (MessageCreateEventArgs e) =>
+            {
+                if (e.Author.IsBot)
+                {
+                    e.Handled = true;
+                }
+            };
+            discord.MessageCreated += BeeReaction;
+            discord.MessageCreated += Bees;
+            discord.MessageCreated += Beep;
+
             discord.ClientErrored += ClientErrored;
 
             var commandsNextConfiguration = new CommandsNextConfiguration
             {
-                StringPrefixes = new string[] {"b"},
+                StringPrefixes = new string[] { "_", "beat" },
                 EnableDms = true,
                 EnableMentionPrefix = true,
                 EnableDefaultHelp = true
@@ -123,6 +146,42 @@ namespace b_118
             };
         }
 
+        private static async Task Beep(MessageCreateEventArgs e)
+        {
+            if (e.Message.Content.ToLower() == "beep")
+            {
+                await e.Message.RespondAsync("boop");
+            }
+        }
+
+        private static async Task Bees(MessageCreateEventArgs e)
+        {
+            if (e.Message.Content.ToLower() == "bees?")
+            {
+                await e.Message.RespondAsync("According to all known laws of aviation,"
+                                           + "there is no way a bee should be able to fly."
+                                           + "Its wings are too small to get its fat little body off the ground.", true);
+                await e.Message.RespondAsync("The bee, of course, flies anyway"
+                                           + "because bees don't care what humans think is impossible.", true);
+                await e.Message.RespondAsync("Yellow, black. Yellow, black. Yellow, black. Yellow, black."
+                                           + "Ooh, black and yellow!"
+                                           + "Let's shake it up a little.", true);
+            }
+        }
+
+        private static async Task BeeReaction(MessageCreateEventArgs e)
+        {
+            if (e.Message.Content.Contains(new char[] { 'b', 'B'}))
+            {
+                GuildDetails guildDetails = GuildDetails.ClientGuilds[e.Guild.Id];
+                if (!guildDetails.GetCooldown("beereaction"))
+                {
+                    await e.Message.CreateReactionAsync(DiscordEmoji.FromName(discord, ":bee:"));
+                    guildDetails.SetCooldown("beereaction", TimeSpan.FromMinutes(5));
+                }
+            }
+        }
+
         private static Task ClientErrored(ClientErrorEventArgs e)
         {
             e.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", "Exception occured", DateTime.Now, e.Exception);
@@ -139,27 +198,30 @@ namespace b_118
 
         private static async Task CommandErrored(CommandErrorEventArgs e)
         {
-            e.Context.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", $"{e.Context.User.Username} tried executing '{e.Command?.QualifiedName ?? "<unknown command>"}' but it errored.", DateTime.Now, e.Exception);
+            if (!(e.Exception is PrefixMismatchException))
+            {
+                e.Context.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", $"{e.Context.User.Username} tried executing '{e.Command?.QualifiedName ?? "<unknown command>"}' but it errored.", DateTime.Now, e.Exception);
 
-            if (e.Exception is ChecksFailedException ex)
-            {
-                var emoji = DiscordEmoji.FromName(e.Context.Client, ":no_entry:");
-                
-                var embed = new DiscordEmbedBuilder
+                if (e.Exception is ChecksFailedException)
                 {
-                    Title = "Access denied",
-                    Description = $"{emoji} You do not have the permissions required to execute this command.",
-                    Color = new DiscordColor(0xFF0000) // red
-                };
-                await e.Context.RespondAsync("", embed: embed);
-            }
-            else if (e.Exception is InvalidOperationException exc)
-            {
-                await e.Context.RespondAsync(exc.Message);
-            }
-            else
-            {
-                await e.Context.RespondAsync("Something went wrong.");
+                    var emoji = DiscordEmoji.FromName(e.Context.Client, ":no_entry:");
+
+                    var embed = new DiscordEmbedBuilder
+                    {
+                        Title = "Access denied",
+                        Description = $"{emoji} You do not have the permissions required to execute this command.",
+                        Color = new DiscordColor(0xFF0000) // red
+                    };
+                    await e.Context.RespondAsync("", embed: embed);
+                }
+                else if (e.Exception is InvalidOperationException exc)
+                {
+                    await e.Context.RespondAsync(exc.Message);
+                }
+                else
+                {
+                    await e.Context.RespondAsync("Something went wrong.");
+                }
             }
         }
     }
