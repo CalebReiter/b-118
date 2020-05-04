@@ -2,6 +2,15 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using DSharpPlus.CommandsNext;
+using b_118.Commands;
+using DSharpPlus.EventArgs;
+using DSharpPlus.CommandsNext.Exceptions;
+using DSharpPlus.Entities;
+using DSharpPlus.Lavalink;
+using DSharpPlus.Net;
+using b_118.Exceptions;
+using b_118.Models;
 
 namespace b_118
 {
@@ -9,10 +18,16 @@ namespace b_118
     {
         static DiscordClient discord;
         static string token;
+        static string lavalinkPassword;
+        static string lavalinkHostname;
+        static int lavalinkPort;
+        static LogLevel logLevel;
+        static CommandsNextExtension commands;
+        static LavalinkExtension lavalink;
 
         static void Main(string[] args)
         {
-            var environmentName = Environment.GetEnvironmentVariable("ENV");
+            var environmentName = Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Production";
 
             var builder = new ConfigurationBuilder()
                 .AddJsonFile($"appsettings.json", true, true)
@@ -21,25 +36,193 @@ namespace b_118
 
             var configuration = builder.Build();
             token = configuration.GetSection("Token")["B-118"];
+            lavalinkHostname = configuration.GetSection("Lavalink")["Hostname"];
+            lavalinkPort = int.Parse(configuration.GetSection("Lavalink")["Port"]);
+            lavalinkPassword = configuration.GetSection("Lavalink")["Password"];
+            switch (configuration.GetSection("Log")["Level"])
+            {
+                case "Debug":
+                    {
+                        logLevel = LogLevel.Debug;
+                        break;
+                    }
+                case "Info":
+                    {
+                        logLevel = LogLevel.Info;
+                        break;
+                    }
+                case "Warning":
+                    {
+                        logLevel = LogLevel.Warning;
+                        break;
+                    }
+                case "Error":
+                    {
+                        logLevel = LogLevel.Error;
+                        break;
+                    }
+                case "Critical":
+                    {
+                        logLevel = LogLevel.Critical;
+                        break;
+                    }
+                default:
+                    {
+                        logLevel = LogLevel.Info;
+                        break;
+                    }
+            }
 
             MainAsync(args).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         static async Task MainAsync(string[] args)
         {
-            discord = new DiscordClient(new DiscordConfiguration
+            var discordConfiguration = new DiscordConfiguration
             {
+                UseInternalLogHandler = true,
+                LogLevel = logLevel,
                 Token = token,
                 TokenType = TokenType.Bot
-            });
-
-            discord.MessageCreated += async e =>
-            {
-                if (e.Message.Content.ToLower().StartsWith("ping"))
-                    await e.Message.RespondAsync("pong");
             };
+
+            discord = new DiscordClient(discordConfiguration);
+
+            discord.Ready += async (ReadyEventArgs e) =>
+            {
+                await discord.UpdateStatusAsync(new DiscordActivity("The Bee Movie", ActivityType.Watching));
+            };
+
+            discord.GuildAvailable += async (GuildCreateEventArgs e) =>
+            {
+                GuildDetails.AddClientGuild(e.Client, e.Guild);
+            };
+
+            discord.MessageCreated += async (MessageCreateEventArgs e) =>
+            {
+                if (e.Author.IsBot)
+                {
+                    e.Handled = true;
+                }
+            };
+            discord.MessageCreated += BeeReaction;
+            discord.MessageCreated += Bees;
+            discord.MessageCreated += Beep;
+
+            discord.ClientErrored += ClientErrored;
+
+            var commandsNextConfiguration = new CommandsNextConfiguration
+            {
+                StringPrefixes = new string[] { "_", "beat" },
+                EnableDms = true,
+                EnableMentionPrefix = true,
+                EnableDefaultHelp = true
+            };
+
+            commands = discord.UseCommandsNext(commandsNextConfiguration);
+            commands.CommandExecuted += CommandExecuted;
+            commands.CommandErrored += CommandErrored;
+            commands.RegisterCommands<BCommands>();
+            commands.RegisterCommands<BeatCommands>();
+
+            lavalink = discord.UseLavalink();
+
             await discord.ConnectAsync();
             await Task.Delay(-1);
+        }
+
+        public static ConnectionEndpoint GetLavalinkConnectionEndpoint()
+        {
+            return new ConnectionEndpoint { Hostname = lavalinkHostname, Port = lavalinkPort };
+        }
+
+        public static LavalinkConfiguration GetLavalinkConfiguration()
+        {
+            return new LavalinkConfiguration
+            {
+                RestEndpoint = GetLavalinkConnectionEndpoint(),
+                SocketEndpoint = GetLavalinkConnectionEndpoint(),
+                Password = lavalinkPassword
+            };
+        }
+
+        private static async Task Beep(MessageCreateEventArgs e)
+        {
+            if (e.Message.Content.ToLower() == "beep")
+            {
+                await e.Message.RespondAsync("boop");
+            }
+        }
+
+        private static async Task Bees(MessageCreateEventArgs e)
+        {
+            if (e.Message.Content.ToLower() == "bees?")
+            {
+                await e.Message.RespondAsync("According to all known laws of aviation,"
+                                           + "there is no way a bee should be able to fly."
+                                           + "Its wings are too small to get its fat little body off the ground.", true);
+                await e.Message.RespondAsync("The bee, of course, flies anyway"
+                                           + "because bees don't care what humans think is impossible.", true);
+                await e.Message.RespondAsync("Yellow, black. Yellow, black. Yellow, black. Yellow, black."
+                                           + "Ooh, black and yellow!"
+                                           + "Let's shake it up a little.", true);
+            }
+        }
+
+        private static async Task BeeReaction(MessageCreateEventArgs e)
+        {
+            if (e.Message.Content.Contains(new char[] { 'b', 'B'}))
+            {
+                GuildDetails guildDetails = GuildDetails.ClientGuilds[e.Guild.Id];
+                if (!guildDetails.GetCooldown("beereaction"))
+                {
+                    await e.Message.CreateReactionAsync(DiscordEmoji.FromName(discord, ":bee:"));
+                    guildDetails.SetCooldown("beereaction", TimeSpan.FromMinutes(5));
+                }
+            }
+        }
+
+        private static Task ClientErrored(ClientErrorEventArgs e)
+        {
+            e.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", "Exception occured", DateTime.Now, e.Exception);
+
+            return Task.CompletedTask;
+        }
+
+        private static Task CommandExecuted(CommandExecutionEventArgs e)
+        {
+            e.Context.Client.DebugLogger.LogMessage(LogLevel.Info, "B-118", $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'", DateTime.Now);
+
+            return Task.CompletedTask;
+        }
+
+        private static async Task CommandErrored(CommandErrorEventArgs e)
+        {
+            if (!(e.Exception is PrefixMismatchException))
+            {
+                e.Context.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", $"{e.Context.User.Username} tried executing '{e.Command?.QualifiedName ?? "<unknown command>"}' but it errored.", DateTime.Now, e.Exception);
+
+                if (e.Exception is ChecksFailedException)
+                {
+                    var emoji = DiscordEmoji.FromName(e.Context.Client, ":no_entry:");
+
+                    var embed = new DiscordEmbedBuilder
+                    {
+                        Title = "Access denied",
+                        Description = $"{emoji} You do not have the permissions required to execute this command.",
+                        Color = new DiscordColor(0xFF0000) // red
+                    };
+                    await e.Context.RespondAsync("", embed: embed);
+                }
+                else if (e.Exception is InvalidOperationException exc)
+                {
+                    await e.Context.RespondAsync(exc.Message);
+                }
+                else
+                {
+                    await e.Context.RespondAsync("Something went wrong.");
+                }
+            }
         }
     }
 }
