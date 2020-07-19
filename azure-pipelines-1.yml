@@ -24,15 +24,4 @@ steps:
     projects: '**/*.csproj'
     arguments: '--self-contained -r linux-64'
 
-jobs:  
-- deployment: VMDeploy
-  displayName: b-118
-  environment:
-    name:  b-118-environment
-    resourceType: VirtualMachine
-  strategy:
-    runOnce:
-      deploy:
-        steps:
-        - script: echo my first deployment
-
+- script: echo my first deployment
