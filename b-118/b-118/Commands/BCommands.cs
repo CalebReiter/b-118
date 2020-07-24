@@ -6,6 +6,8 @@ using DSharpPlus.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace b_118.Commands
@@ -19,37 +21,52 @@ namespace b_118.Commands
         public BCommands() : base()
         {
             _prefix = new CustomPrefix("b.");
-            var beat = new BeatCommands();
-            var campaign = new CampaignCommands();
-            var board = new BoardCommands();
+            BeatCommands beat = new BeatCommands();
+            CampaignCommands campaign = new CampaignCommands();
+            BoardCommands board = new BoardCommands();
             COMMAND_TYPES.Add(_prefix._prefix, GetType());
             COMMAND_TYPES.Add(beat._prefix._prefix, beat.GetType());
             COMMAND_TYPES.Add(campaign._prefix._prefix, campaign.GetType());
             COMMAND_TYPES.Add(board._prefix._prefix, board.GetType());
         }
 
+        /// <summary>
+        /// This command will change in the future. Just testing executing a command from an argument.
+        /// Preferably the flow will be that a user will first save an alias with a name,
+        /// then they can use this command to execute their saved aliases.
+        /// <example>
+        /// b.new-alias tf "sound board tavern/table_flip 200 10"
+        /// b.alias tf
+        /// Executing sound board tavern/table_flip 200 10
+        /// </example>
+        /// </summary>
+        /// <param name="ctx">The CommandContext for the message.</param>
+        /// <param name="alias">Alias to execute.</param>
         [Command("alias")]
         public async Task Alias(CommandContext ctx, [Description("Command to execute.")] string alias)
         {
             await _prefix.Verify(ctx.Prefix, async () =>
             {
                 string prefix = null;
-                foreach (string s in Program.Prefixes) {
-                    if (alias.StartsWith(s))
+                foreach (string p in Program.Prefixes) {
+                    if (alias.StartsWith(p))
                     {
-                        prefix = s;
+                        prefix = p;
                     }
                 }
-                foreach (var type in COMMAND_TYPES)
+                foreach (KeyValuePair<string, Type> commandType in COMMAND_TYPES)
                 {
-                    var methods = type.Value.GetMethods().Where(method =>
+                    IEnumerable<MethodInfo> methods = commandType.Value.GetMethods().Where(method =>
                         method.GetCustomAttributes(typeof(CommandAttribute), false).Length > 0);
-                    foreach (var method in methods)
+                    foreach (MethodInfo method in methods)
                     {
-                        var command = (CommandAttribute)method.GetCustomAttributes(typeof(CommandAttribute), false).First();
-                        if (alias.StartsWith($"{prefix}{command.Name}") || alias.StartsWith($"{prefix} {command.Name}")) {
-                            var _command = ctx.CommandsNext.RegisteredCommands[command.Name];
-                            var context = ctx.CommandsNext.CreateFakeContext(ctx.User, ctx.Channel, alias, prefix, _command, alias.Split(command.Name)[1]);
+                        CommandAttribute command = (CommandAttribute)method.GetCustomAttributes(typeof(CommandAttribute), false).First();
+                        // Match starts with command but also isn't a command that starts with a superstring of the given command.
+                        Regex regex = new Regex($"^{prefix}\\s?{command.Name}(\\s{1}|$)");
+                        if (regex.Match(alias).Success) {
+                            Command aliasCommand = ctx.CommandsNext.RegisteredCommands[command.Name];
+                            string commandArguments = alias.Split(command.Name)[1];
+                            CommandContext context = ctx.CommandsNext.CreateFakeContext(ctx.User, ctx.Channel, alias, prefix, aliasCommand, commandArguments);
                             DiscordMessage response = await ctx.RespondAsync($"Executing `{alias}`");
                             await ctx.Message.DeleteAsync();
                             await context.CommandsNext.ExecuteCommandAsync(context);
@@ -61,6 +78,10 @@ namespace b_118.Commands
             });
         }
 
+        /// <summary>
+        /// Use reflection to get the Command classes and their descriptions.
+        /// </summary>
+        /// <param name="ctx">The CommandContext for the message.</param>
         [Command("help")]
         [Hidden]
         public async Task Help(CommandContext ctx)
@@ -68,105 +89,116 @@ namespace b_118.Commands
             await _prefix.Verify(ctx.Prefix, async () =>
             {
                 string content = "";
-                foreach (var type in COMMAND_TYPES)
+                foreach (KeyValuePair<string, Type> commandType in COMMAND_TYPES)
                 {
-                    var attr = (DescriptionAttribute)type.Value.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
-                    content += $"\n`{type.Key}`\t{attr.Description}";
+                    DescriptionAttribute description = (DescriptionAttribute)commandType.Value.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
+                    content += $"\n`{commandType.Key}`\t{description.Description}";
                 }
-                var embed = new DiscordEmbedBuilder()
+                DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder()
                 {
                     Title = "help",
                     Description = content,
                     Color = Program.GetColors().Yellow
                 };
-                var messaging = new Messaging(ctx);
-                await messaging.RespondEmbed(TimeSpan.FromMinutes(5))(null, embed);
+                Messaging messaging = new Messaging(ctx);
+                await messaging.RespondEmbed(TimeSpan.FromMinutes(5))(null, embedBuilder.Build());
             });
         }
 
+        /// <summary>
+        /// Use reflection to get the commands of a given Command class and their descriptions.
+        /// </summary>
+        /// <param name="ctx">The CommandContext for the message.</param>
+        /// <param name="prefix">The prefix for the Command class</param>
         [Command("help")]
         [Hidden]
         public async Task Help(CommandContext ctx, string prefix)
         {
             await _prefix.Verify(ctx.Prefix, async () =>
             {
-                var messaging = new Messaging(ctx);
-                var type = COMMAND_TYPES[prefix];
+                Messaging messaging = new Messaging(ctx);
+                Type type = COMMAND_TYPES[prefix];
                 if (type == null)
                 {
                     await messaging.RespondContent()($"There is no command with the {prefix} prefix");
                     return;
                 }
-                var description = (DescriptionAttribute)type.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
-                string content = $"{description.Description}";
-                var methods = type.GetMethods().Where(method =>
+                DescriptionAttribute commandDescription = (DescriptionAttribute)type.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
+                string content = $"{commandDescription.Description}";
+                IEnumerable<MethodInfo> methods = type.GetMethods().Where(method =>
                     method.GetCustomAttributes(typeof(HiddenAttribute), false).Length <= 0 &&
                     method.GetCustomAttributes(typeof(CommandAttribute), false).Length > 0
-                ).ToArray();
-                foreach (var method in methods)
+                );
+                foreach (MethodInfo method in methods)
                 {
-                    var commandAttr = (CommandAttribute)method.GetCustomAttributes(typeof(CommandAttribute), false).First();
-                    var descriptionAttr = (DescriptionAttribute)method.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
-                    content += $"\n`{prefix} {commandAttr.Name}`\t{descriptionAttr.Description}";
+                    CommandAttribute command = (CommandAttribute)method.GetCustomAttributes(typeof(CommandAttribute), false).First();
+                    DescriptionAttribute methodDescription = (DescriptionAttribute)method.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
+                    content += $"\n`{prefix} {command.Name}`\t{methodDescription.Description}";
                 }
-                var embed = new DiscordEmbedBuilder()
+                DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder()
                 {
                     Title = $"help {prefix}",
                     Description = content,
                     Color = Program.GetColors().Yellow
                 };
-                await messaging.RespondEmbed(TimeSpan.FromMinutes(5))(null, embed);
+                await messaging.RespondEmbed(TimeSpan.FromMinutes(5))(null, embedBuilder.Build());
             });
         }
 
+        /// <summary>
+        /// Use reflection to get the parameters of a given Command from a Command class and their descriptions.
+        /// </summary>
+        /// <param name="ctx">The CommandContext for the message.</param>
+        /// <param name="prefix">The prefix for the Command class</param>
+        /// <param name="command">The command from the Command class</param>
         [Command("help")]
         [Description("Get help for commands.")]
         public async Task Help(CommandContext ctx, [Description("The prefix to get help with.")] string prefix, [Description("The command to get help with.")] string command)
         {
             await _prefix.Verify(ctx.Prefix, async () =>
             {
-                var messaging = new Messaging(ctx);
-                var type = COMMAND_TYPES[prefix];
+                Messaging messaging = new Messaging(ctx);
+                Type type = COMMAND_TYPES[prefix];
                 if (type == null)
                 {
                     await messaging.RespondContent()($"There is no command with the {prefix} prefix");
                     return;
                 }
-                var method = type.GetMethods().Where(method =>
+                MethodInfo method = type.GetMethods().Where(method =>
                 {
                     try
                     {
-                        var commandAttr = (CommandAttribute)method.GetCustomAttributes(typeof(CommandAttribute), false).First();
+                        CommandAttribute _command = (CommandAttribute)method.GetCustomAttributes(typeof(CommandAttribute), false).First();
                         return method.GetCustomAttributes(typeof(HiddenAttribute), false).Length <= 0 &&
-                        commandAttr.Name.ToLower().Equals(command.ToLower());
+                               _command.Name.ToLower().Equals(command.ToLower());
                     } catch (InvalidOperationException)
                     {
                         return false;
                     }
                 }
                 ).Single();
-                var description = (DescriptionAttribute)method.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
-                string content = description.Description;
-                var parameters = method.GetParameters().Where(parameter =>
+                DescriptionAttribute methodDescription = (DescriptionAttribute)method.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
+                string content = methodDescription.Description;
+                IEnumerable<ParameterInfo> parameters = method.GetParameters().Where(parameter =>
                     parameter.GetCustomAttributes(typeof(DescriptionAttribute), false).Length > 0
                 );
-                foreach (var parameter in parameters)
+                foreach (ParameterInfo parameter in parameters)
                 {
-                    var descriptionAttr = (DescriptionAttribute)parameter.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
-                    var optional = parameter.IsOptional ? "?" : "";
-                    var defaultValue = (parameter.HasDefaultValue && parameter.DefaultValue != null) ? $"={parameter.DefaultValue}" : "";
-                    var genericTypes = parameter.ParameterType.GenericTypeArguments;
-                    var parameterType= genericTypes.Length > 0 ? genericTypes[0] : parameter.ParameterType;
-                    var typeName = ctx.CommandsNext.GetUserFriendlyTypeName(parameterType); 
-                    content += $"\n`{parameter.Name}: {typeName}{optional}{defaultValue}`\t{descriptionAttr.Description}";
+                    DescriptionAttribute parameterDescription = (DescriptionAttribute)parameter.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
+                    string optional = parameter.IsOptional ? "?" : "";
+                    string defaultValue = (parameter.HasDefaultValue && parameter.DefaultValue != null) ? $"={parameter.DefaultValue}" : "";
+                    Type[] genericTypes = parameter.ParameterType.GenericTypeArguments;
+                    Type parameterType= genericTypes.Length > 0 ? genericTypes[0] : parameter.ParameterType;
+                    string typeName = ctx.CommandsNext.GetUserFriendlyTypeName(parameterType); 
+                    content += $"\n`{parameter.Name}: {typeName}{optional}{defaultValue}`\t{parameterDescription.Description}";
                 }
-                var embed = new DiscordEmbedBuilder()
+                DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder()
                 {
                     Title = $"help {prefix} {command}",
                     Description = content,
                     Color = Program.GetColors().Yellow
                 };
-                await messaging.RespondEmbed(TimeSpan.FromMinutes(5))(null, embed);
+                await messaging.RespondEmbed(TimeSpan.FromMinutes(5))(null, embedBuilder.Build());
             });
         }
     }

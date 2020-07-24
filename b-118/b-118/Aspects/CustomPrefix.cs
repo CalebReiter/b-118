@@ -1,8 +1,5 @@
 ﻿using b_118.Exceptions;
-using DSharpPlus.CommandsNext;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace b_118.Aspects
