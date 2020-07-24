@@ -34,10 +34,10 @@ namespace b_118.Models
             ClientGuilds[guild.Id] = new GuildDetails();
         }
 
-        public async Task SetCooldown(string key, TimeSpan timespan)
+        public void SetCooldown(string key, TimeSpan timespan)
         {
             _cooldowns[key] = true;
-            Task.Delay(timespan).ContinueWith(async (_) =>
+            Task.Delay(timespan).ContinueWith((_) =>
             {
                 _cooldowns[key] = false;
             });

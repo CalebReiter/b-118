@@ -10,126 +10,138 @@ namespace b_118.Utility
     {
         static readonly TimeSpan DEFAULT_TIMEOUT = TimeSpan.FromSeconds(10);
         static readonly bool DEFAULT_DELETE = true;
+        private readonly DiscordClient _client;
+        private readonly DiscordMessage _message;
 
-        public static Func<string, Task<DiscordMessage>> RespondContent(CommandContext ctx)
+        public Messaging(DiscordClient client, DiscordMessage message)
         {
-            return RespondContent(ctx, DEFAULT_DELETE, DEFAULT_TIMEOUT);
+            _client = client;
+            _message = message;
         }
 
-        public static Func<string, Task<DiscordMessage>> RespondContent(CommandContext ctx, bool delete = true)
+        public Messaging(CommandContext context)
         {
-            return RespondContent(ctx, delete, DEFAULT_TIMEOUT);
-        }
-        public static Func<string, Task<DiscordMessage>> RespondContent(CommandContext ctx, TimeSpan timeout)
-        {
-            return RespondContent(ctx, DEFAULT_DELETE, timeout);
+            _client = context.Client;
+            _message = context.Message;
         }
 
-        public static Func<string, Task<DiscordMessage>> RespondContent(CommandContext ctx, bool delete, TimeSpan timeout)
+        public Func<string, Task<DiscordMessage>> RespondContent(bool delete = true)
+        {
+            return RespondContent(delete, DEFAULT_TIMEOUT, DEFAULT_DELETE);
+        }
+        public Func<string, Task<DiscordMessage>> RespondContent(TimeSpan timeout)
+        {
+            return RespondContent(DEFAULT_DELETE, timeout, DEFAULT_DELETE);
+        }
+        public Func<string, Task<DiscordMessage>> RespondContent(bool delete, bool deleteResponse)
+        {
+            return RespondContent(delete, DEFAULT_TIMEOUT, deleteResponse);
+        }
+
+        public Func<string, Task<DiscordMessage>> RespondContent(bool delete, TimeSpan timeout)
+        {
+            return RespondContent(delete, timeout, DEFAULT_DELETE);
+        }
+
+        public Func<string, Task<DiscordMessage>> RespondContent(bool delete, TimeSpan timeout, bool deleteResponse)
         {
             return async (content) =>
             {
-                var response = await ctx.RespondAsync(content);
-                await DeleteMessages(ctx, response, delete, timeout);
+                var response = await _message.RespondAsync(content);
+                await DeleteMessages(response, delete, timeout, deleteResponse);
                 return response;
             };
         }
-        public static Func<string, Task<DiscordMessage>> RespondTTS(CommandContext ctx)
+
+        public Func<string, Task<DiscordMessage>> RespondTTS(bool delete = true)
         {
-            return RespondTTS(ctx, DEFAULT_DELETE, DEFAULT_TIMEOUT);
+            return RespondTTS(delete, DEFAULT_TIMEOUT);
         }
 
-        public static Func<string, Task<DiscordMessage>> RespondTTS(CommandContext ctx, bool delete = true)
+        public Func<string, Task<DiscordMessage>> RespondTTS(TimeSpan timeout)
         {
-            return RespondTTS(ctx, delete, DEFAULT_TIMEOUT);
+            return RespondTTS(DEFAULT_DELETE, timeout);
         }
 
-        public static Func<string, Task<DiscordMessage>> RespondTTS(CommandContext ctx, TimeSpan timeout)
-        {
-            return RespondTTS(ctx, DEFAULT_DELETE, timeout);
-        }
-
-        public static Func<string, Task<DiscordMessage>> RespondTTS(CommandContext ctx, bool delete, TimeSpan timeout)
+        public Func<string, Task<DiscordMessage>> RespondTTS(bool delete, TimeSpan timeout)
         {
             return async (content) =>
             {
-                var response = await ctx.RespondAsync(content, true);
-                await DeleteMessages(ctx, response, delete, timeout);
+                var response = await _message.RespondAsync(content, true);
+                await DeleteMessages(response, delete, timeout);
                 return response;
             };
         }
 
-        public static Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(CommandContext ctx)
+        public Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(bool delete = true)
         {
-            return RespondEmbed(ctx, DEFAULT_DELETE, DEFAULT_TIMEOUT);
+            return RespondEmbed(delete, DEFAULT_TIMEOUT);
         }
 
-        public static Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(CommandContext ctx, bool delete = true)
+        public Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(TimeSpan timeout)
         {
-            return RespondEmbed(ctx, delete, DEFAULT_TIMEOUT);
-        }
-        public static Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(CommandContext ctx, TimeSpan timeout)
-        {
-            return RespondEmbed(ctx, DEFAULT_DELETE, timeout);
+            return RespondEmbed(DEFAULT_DELETE, timeout);
         }
 
-        public static Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(CommandContext ctx, bool delete, TimeSpan timeout)
+        public Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(bool delete, TimeSpan timeout)
         {
             return async (content, embed) =>
             {
-                var response = await ctx.RespondAsync(content, false, embed);
-                await DeleteMessages(ctx, response, delete, timeout);
+                var response = await _message.RespondAsync(content, false, embed);
+                await DeleteMessages(response, delete, timeout);
                 return response;
             };
         }
 
-        public static Func<string, DiscordEmbed, Task<DiscordMessage>> RespondTTSEmbed(CommandContext ctx)
+        public Func<string, DiscordEmbed, Task<DiscordMessage>> RespondTTSEmbed(bool delete = true)
         {
-            return RespondTTSEmbed(ctx, DEFAULT_DELETE, DEFAULT_TIMEOUT);
+            return RespondTTSEmbed(delete, DEFAULT_TIMEOUT);
         }
 
-        public static Func<string, DiscordEmbed, Task<DiscordMessage>> RespondTTSEmbed(CommandContext ctx, bool delete = true)
+        public Func<string, DiscordEmbed, Task<DiscordMessage>> RespondTTSEmbed(TimeSpan timeout)
         {
-            return RespondTTSEmbed(ctx, delete, DEFAULT_TIMEOUT);
-        }
-        public static Func<string, DiscordEmbed, Task<DiscordMessage>> RespondTTSEmbed(CommandContext ctx, TimeSpan timeout)
-        {
-            return RespondTTSEmbed(ctx, DEFAULT_DELETE, timeout);
+            return RespondTTSEmbed(DEFAULT_DELETE, timeout);
         }
 
-        public static Func<string, DiscordEmbed, Task<DiscordMessage>> RespondTTSEmbed(CommandContext ctx, bool delete, TimeSpan timeout)
+        public Func<string, DiscordEmbed, Task<DiscordMessage>> RespondTTSEmbed(bool delete, TimeSpan timeout)
         {
             return async (content, embed) =>
             {
-                var response = await ctx.RespondAsync(content, true, embed);
-                await DeleteMessages(ctx, response, delete, timeout);
+                var response = await _message.RespondAsync(content, true, embed);
+                await DeleteMessages(response, delete, timeout);
                 return response;
             };
         }
 
-        private static async Task DeleteMessages(CommandContext ctx, DiscordMessage response, bool delete, TimeSpan timeout)
+        private async Task DeleteMessages(DiscordMessage response, bool delete, TimeSpan timeout, bool deleteResponse = true)
         {
             try
             {
                 if (delete)
                 {
-                    await ctx.Message.DeleteAsync();
+                    try
+                    {
+                        await _message.DeleteAsync();
+                    } catch (Exception) { }
                 }
-                if (timeout.TotalMilliseconds == 0)
+                if (timeout.TotalMilliseconds == 0 && deleteResponse)
                 {
                     await response.DeleteAsync();
                 }
-                else if (timeout.TotalMilliseconds > 0)
+                else if (timeout.TotalMilliseconds > 0 && deleteResponse)
                 {
                     await Task.Delay(timeout).ContinueWith(async (_) =>
                     {
                         await response.DeleteAsync();
                     });
                 }
-            } catch (Exception ex)
-            {
-                ctx.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", "", DateTime.Now, ex);
-            }
+            } catch (Exception ex) when (LogError(ex)) { }
+        }
+
+        private bool LogError(Exception ex)
+        {
+            _client.DebugLogger.LogMessage(LogLevel.Error, "B-118", "", DateTime.Now, ex);
+            return false;
         }
     }
 }

@@ -10,7 +10,7 @@ namespace b_118.Aspects
     class CustomPrefix
     {
 
-        private string _prefix;
+        public readonly string _prefix;
 
         public CustomPrefix(string prefix)
         {

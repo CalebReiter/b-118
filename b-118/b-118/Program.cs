@@ -11,6 +11,10 @@ using DSharpPlus.Lavalink;
 using DSharpPlus.Net;
 using b_118.Exceptions;
 using b_118.Models;
+using b_118.Utility;
+using b_118.Database;
+using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Enums;
 
 namespace b_118
 {
@@ -23,22 +27,31 @@ namespace b_118
         static int lavalinkPort;
         static LogLevel logLevel;
         static CommandsNextExtension commands;
+        static InteractivityExtension interactivity;
         static LavalinkExtension lavalink;
+        public static string[] Prefixes = new string[] { "b.", "beat", "campaign", "sound" };
+        private static IConfiguration configuration;
+        private static B118DB b118DB;
+        private static SoundClip b118SoundClip;
 
         static void Main(string[] args)
         {
             var environmentName = Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Production";
-
             var builder = new ConfigurationBuilder()
                 .AddJsonFile($"appsettings.json", true, true)
                 .AddJsonFile($"appsettings.{environmentName}.json", true, true)
                 .AddEnvironmentVariables();
 
-            var configuration = builder.Build();
+            configuration = builder.Build();
             token = configuration.GetSection("Token")["B-118"];
             lavalinkHostname = configuration.GetSection("Lavalink")["Hostname"];
             lavalinkPort = int.Parse(configuration.GetSection("Lavalink")["Port"]);
             lavalinkPassword = configuration.GetSection("Lavalink")["Password"];
+            b118DB = new B118DB(configuration.GetSection("Database")["B-118-File"]);
+            b118SoundClip = new SoundClip(
+                configuration.GetSection("SoundClips")["directory"],
+                configuration.GetSection("SoundClips")["regex"]
+                );
             switch (configuration.GetSection("Log")["Level"])
             {
                 case "Debug":
@@ -78,6 +91,8 @@ namespace b_118
 
         static async Task MainAsync(string[] args)
         {
+            await b118DB.Init();
+            var count = await b118DB.CountBlackListedInvites();
             var discordConfiguration = new DiscordConfiguration
             {
                 UseInternalLogHandler = true,
@@ -93,12 +108,14 @@ namespace b_118
                 await discord.UpdateStatusAsync(new DiscordActivity("The Bee Movie", ActivityType.Watching));
             };
 
+            #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
             discord.GuildAvailable += async (GuildCreateEventArgs e) =>
             {
                 GuildDetails.AddClientGuild(e.Client, e.Guild);
             };
 
             discord.MessageCreated += async (MessageCreateEventArgs e) =>
+            #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             {
                 if (e.Author.IsBot)
                 {
@@ -113,22 +130,43 @@ namespace b_118
 
             var commandsNextConfiguration = new CommandsNextConfiguration
             {
-                StringPrefixes = new string[] { "_", "beat" },
+                StringPrefixes = Prefixes,
                 EnableDms = true,
-                EnableMentionPrefix = true,
-                EnableDefaultHelp = true
+                EnableDefaultHelp = false
             };
+
+            interactivity = discord.UseInteractivity(new InteractivityConfiguration()
+            {
+                Timeout = TimeSpan.FromSeconds(30)
+            });
 
             commands = discord.UseCommandsNext(commandsNextConfiguration);
             commands.CommandExecuted += CommandExecuted;
             commands.CommandErrored += CommandErrored;
-            commands.RegisterCommands<BCommands>();
+            commands.RegisterCommands<BoardCommands>();
             commands.RegisterCommands<BeatCommands>();
+            commands.RegisterCommands<CampaignCommands>();
+            commands.RegisterCommands<BCommands>();
 
             lavalink = discord.UseLavalink();
 
             await discord.ConnectAsync();
             await Task.Delay(-1);
+        }
+
+        public static B118DB GetB118DB()
+        {
+            return b118DB;
+        }
+
+        public static SoundClip GetB118SoundClip()
+        {
+            return b118SoundClip;
+        }
+
+        public static Colors GetColors()
+        {
+            return new Colors(configuration);
         }
 
         public static ConnectionEndpoint GetLavalinkConnectionEndpoint()
@@ -173,11 +211,14 @@ namespace b_118
         {
             if (e.Message.Content.Contains(new char[] { 'b', 'B'}))
             {
-                GuildDetails guildDetails = GuildDetails.ClientGuilds[e.Guild.Id];
-                if (!guildDetails.GetCooldown("beereaction"))
+                if (!e.Channel.IsPrivate)
                 {
-                    await e.Message.CreateReactionAsync(DiscordEmoji.FromName(discord, ":bee:"));
-                    guildDetails.SetCooldown("beereaction", TimeSpan.FromMinutes(5));
+                    GuildDetails guildDetails = GuildDetails.ClientGuilds[e.Guild.Id];
+                    if (!guildDetails.GetCooldown("beereaction"))
+                    {
+                        await e.Message.CreateReactionAsync(DiscordEmoji.FromName(discord, ":bee:"));
+                        guildDetails.SetCooldown("beereaction", TimeSpan.FromMinutes(5));
+                    }
                 }
             }
         }
