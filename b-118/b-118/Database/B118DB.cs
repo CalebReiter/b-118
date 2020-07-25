@@ -63,7 +63,7 @@ namespace b_118.Database
             return await _dbConnection.GetConnection().ExecuteAsync(sql, param);
         }
 
-        public async Task<IEnumerable<int>> GetInviteBlacklistForUser(ulong userid)
+        public async Task<IEnumerable<ulong>> GetInviteBlacklistForUser(ulong userid)
         {
             if (!hasInitialized)
                 throw new InvalidOperationException("B118DB must be initialized first.");
@@ -72,7 +72,7 @@ namespace b_118.Database
             {
                 userid
             };
-            return await _dbConnection.GetConnection().QueryAsync<int>(sql, param);
+            return await _dbConnection.GetConnection().QueryAsync<ulong>(sql, param);
         }
 
         public async Task<int> BlackListRequest(ulong userid, ulong roleid)
@@ -101,7 +101,7 @@ namespace b_118.Database
             return await _dbConnection.GetConnection().ExecuteAsync(sql, param);
         }
 
-        public async Task<IEnumerable<int>> GetInviteBlacklistForCampaign(ulong roleid)
+        public async Task<IEnumerable<ulong>> GetInviteBlacklistForCampaign(ulong roleid)
         {
             if (!hasInitialized)
                 throw new InvalidOperationException("B118DB must be initialized first.");
@@ -110,7 +110,7 @@ namespace b_118.Database
             {
                 roleid
             };
-            return await _dbConnection.GetConnection().QueryAsync<int>(sql, param);
+            return await _dbConnection.GetConnection().QueryAsync<ulong>(sql, param);
         }
     }
 }
