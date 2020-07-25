@@ -54,25 +54,23 @@ namespace b_118.Commands
                         prefix = p;
                     }
                 }
-                foreach (KeyValuePair<string, Type> commandType in COMMAND_TYPES)
+                Type commandType = COMMAND_TYPES[prefix];
+                IEnumerable<MethodInfo> methods = commandType.GetMethods().Where(method =>
+                    method.GetCustomAttributes(typeof(CommandAttribute), false).Length > 0);
+                foreach (MethodInfo method in methods)
                 {
-                    IEnumerable<MethodInfo> methods = commandType.Value.GetMethods().Where(method =>
-                        method.GetCustomAttributes(typeof(CommandAttribute), false).Length > 0);
-                    foreach (MethodInfo method in methods)
-                    {
-                        CommandAttribute command = (CommandAttribute)method.GetCustomAttributes(typeof(CommandAttribute), false).First();
-                        // Match starts with command but also isn't a command that starts with a superstring of the given command.
-                        Regex regex = new Regex($"^{prefix}\\s?{command.Name}(\\s{1}|$)");
-                        if (regex.Match(alias).Success) {
-                            Command aliasCommand = ctx.CommandsNext.RegisteredCommands[command.Name];
-                            string commandArguments = alias.Split(command.Name)[1];
-                            CommandContext context = ctx.CommandsNext.CreateFakeContext(ctx.User, ctx.Channel, alias, prefix, aliasCommand, commandArguments);
-                            DiscordMessage response = await ctx.RespondAsync($"Executing `{alias}`");
-                            await ctx.Message.DeleteAsync();
-                            await context.CommandsNext.ExecuteCommandAsync(context);
-                            await response.DeleteAsync();
-                            return;
-                        }
+                    CommandAttribute command = (CommandAttribute)method.GetCustomAttributes(typeof(CommandAttribute), false).First();
+                    // Match starts with command but also isn't a command that starts with a superstring of the given command.
+                    Regex regex = new Regex($"^{prefix}\\s?{command.Name}(\\s{1}|$)");
+                    if (regex.Match(alias).Success) {
+                        Command aliasCommand = ctx.CommandsNext.RegisteredCommands[command.Name];
+                        string commandArguments = alias.Split(command.Name)[1];
+                        CommandContext context = ctx.CommandsNext.CreateFakeContext(ctx.User, ctx.Channel, alias, prefix, aliasCommand, commandArguments);
+                        DiscordMessage response = await ctx.RespondAsync($"Executing `{alias}`");
+                        await ctx.Message.DeleteAsync();
+                        await context.CommandsNext.ExecuteCommandAsync(context);
+                        await response.DeleteAsync();
+                        return;
                     }
                 }
             });
