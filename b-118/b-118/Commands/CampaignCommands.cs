@@ -137,38 +137,38 @@ namespace b_118.Commands
     }
 
     [Command("create")]
+    [RequirePrefixes("campaign")]
+    [RequireRoles(RoleCheckMode.All, "DM")]
     [Description("Create a new campaign. Requires the DM role.")]
     public async Task CreateCampaign(CommandContext ctx, [Description("Name of the campaign.")] string name, [Description("Color used for the role.")] DiscordColor? color = null, [Description("Channels to exclude from the category.")] params string[] excludeChannels)
     {
-      await _prefix.Verify(ctx.Prefix, async () =>
+      await ctx.Message.DeleteAsync();
+      CheckPermissions(ctx);
+      if (ctx.Guild.Roles.Any(role => role.Value.Name.Equals(name)))
+        throw new InvalidOperationException($"{name} is already taken.");
+      if (color == null)
+        color = Program.GetColors().GetRandomColor();
+      DiscordRole role = await ctx.Guild.CreateRoleAsync(name, null, color, null, false, $"Create {name} Campaign.");
+      await ctx.Member.GrantRoleAsync(role, $"Creator of the {name} Campaign.");
+      DiscordChannel campaignCategory = await ctx.Guild.CreateChannelCategoryAsync(name, GetCategoryOverwriteBuilders(ctx.Guild.EveryoneRole, role));
+      DiscordChannel announcements = await ctx.Guild.CreateTextChannelAsync("announcements", campaignCategory, null, GetAnnouncementsOverwriteBuilders(ctx.Guild.EveryoneRole, ctx.Member, role), null, default, $"Create {name} Campaign.");
+      Task[] tasks = new Task[] { };
+      string[] channels = new string[] { "bot-commands", "chat", "dm-notes", "off-topic", "sending-stones", "whisper" };
+      foreach (string channel in channels)
       {
-        await ctx.Message.DeleteAsync();
-        CheckPermissions(ctx);
-        CheckRole(ctx, "DM");
-        if (ctx.Guild.Roles.Any(role => role.Value.Name.Equals(name)))
-          throw new InvalidOperationException($"{name} is already taken.");
-        if (color == null)
-          color = Program.GetColors().GetRandomColor();
-        DiscordRole role = await ctx.Guild.CreateRoleAsync(name, null, color, null, false, $"Create {name} Campaign.");
-        await ctx.Member.GrantRoleAsync(role, $"Creator of the {name} Campaign.");
-        DiscordChannel campaignCategory = await ctx.Guild.CreateChannelCategoryAsync(name, GetCategoryOverwriteBuilders(ctx.Guild.EveryoneRole, role));
-        DiscordChannel announcements = await ctx.Guild.CreateTextChannelAsync("announcements", campaignCategory, null, GetAnnouncementsOverwriteBuilders(ctx.Guild.EveryoneRole, ctx.Member, role), null, default, $"Create {name} Campaign.");
-        Task[] tasks = new Task[] { };
-        string[] channels = new string[] { "bot-commands", "chat", "dm-notes", "off-topic", "sending-stones", "whisper" };
-        foreach (string channel in channels)
+        if (!excludeChannels.Any((excludedChannel) => excludedChannel == channel))
         {
-          if (!excludeChannels.Any((excludedChannel) => excludedChannel == channel))
-          {
-            IEnumerable<DiscordOverwriteBuilder> overwrites = channel == "dm-notes" ? GetDMNotesOverwriteBuilders(ctx.Guild.EveryoneRole, ctx.Member, role) : null;
-            tasks.Append(ctx.Guild.CreateTextChannelAsync(channel, campaignCategory, null, overwrites, null, default, $"Create {name} Campaign."));
-          }
+          IEnumerable<DiscordOverwriteBuilder> overwrites = channel == "dm-notes" ? GetDMNotesOverwriteBuilders(ctx.Guild.EveryoneRole, ctx.Member, role) : null;
+          tasks.Append(ctx.Guild.CreateTextChannelAsync(channel, campaignCategory, null, overwrites, null, default, $"Create {name} Campaign."));
         }
-        Task.WaitAll(tasks);
-        await announcements.SendMessageAsync($"{ctx.Member.Mention} Campaign {name} has been created.");
-      });
+      }
+      Task.WaitAll(tasks);
+      await announcements.SendMessageAsync($"{ctx.Member.Mention} Campaign {name} has been created.");
     }
 
     [Command("create")]
+    [RequirePrefixes("campaign")]
+    [RequireRoles(RoleCheckMode.All, "DM")]
     [Hidden]
     public async Task CreateCampaign(CommandContext ctx, string name, params string[] excludeChannels)
     {
@@ -176,236 +176,228 @@ namespace b_118.Commands
     }
 
     [Command("invite")]
+    [RequireRoles(RoleCheckMode.All, "DM")]
+    [RequirePrefixes("campaign")]
     [Description("Invite a user to a campaign.")]
     public async Task InviteToCampaign(CommandContext ctx, [Description("Name of the campaign.")] string name, [Description("Member to invite.")] DiscordMember member)
     {
-      await _prefix.Verify(ctx.Prefix, async () =>
+      Messaging messaging = new Messaging(ctx);
+      DiscordChannel channel = GetCampaignCategory(ctx, name);
+      if (CheckOwnership(ctx, channel))
       {
-        Messaging messaging = new Messaging(ctx);
-        DiscordChannel channel = GetCampaignCategory(ctx, name);
-        if (CheckOwnership(ctx, channel))
-        {
-          DiscordRole role = ctx.Guild.Roles.First(role => role.Value.Name.Equals(name)).Value;
-          if (member.Roles.Contains(role))
-          {
-            await messaging.RespondContent()($"{member.Nickname} is already in {name}.");
-            return;
-          }
-          IEnumerable<ulong> blacklistedInvites = await Program.GetB118DB().GetInviteBlacklistForUser(member.Id);
-          if (blacklistedInvites.Contains(role.Id))
-          {
-            await messaging.RespondContent()($"{member.DisplayName} has already declined to join {name}.");
-            return;
-          }
-          DiscordEmoji checkmark = DiscordEmoji.FromName(ctx.Client, ":white_check_mark:");
-          DiscordEmoji cancel = DiscordEmoji.FromName(ctx.Client, ":x:");
-          DiscordMessage message = await member.SendMessageAsync($"{ctx.User.Username} has invited you to join the {name} campaign."
-                                            + $"\nReact {checkmark} to accept the invitation."
-                                            + $"\nReact {cancel} to decline this and further invites to this campaign.");
-          await message.CreateReactionAsync(checkmark);
-          await message.CreateReactionAsync(cancel);
-          InteractivityExtension interactivity = ctx.Client.GetInteractivity();
-          InteractivityResult<DSharpPlus.EventArgs.MessageReactionAddEventArgs> reaction = await interactivity.WaitForReactionAsync((e) =>
-                    e.User.Id.Equals(member.Id) && e.Message.Id.Equals(message.Id) && (e.Emoji.Name.Equals(checkmark.Name) || e.Emoji.Name.Equals(cancel.Name)),
-                    TimeSpan.FromSeconds(30));
-          if (reaction.TimedOut)
-          {
-            await message.ModifyAsync($"~~{message.Content}~~\nInvite has expired.");
-          }
-          else
-          {
-            if (reaction.Result.Emoji.Name == checkmark.Name)
-            {
-              await member.GrantRoleAsync(role);
-              string commandName = name.IndexOf(" ") >= 0 ? $"\"{name}\"" : name;
-              await messaging.RespondContent(true, false)($"{member.Mention} has been added to {name}! You can always use `campaign leave {commandName}` to leave.");
-            }
-            else if (reaction.Result.Emoji.Name == cancel.Name)
-            {
-              await Program.GetB118DB().BlackListInvite(member.Id, role.Id);
-              await member.SendMessageAsync($"You will no longer receive invites from {name}.");
-            }
-          }
-        }
-        else
-        {
-          await messaging.RespondContent(false)($"You have to be the DM to invite members to a campaign.");
-        }
-      });
-    }
-
-    [Command("join")]
-    [Description("Request to join a campaign.")]
-    public async Task JoinCampaign(CommandContext ctx, [Description("Name of the campaign to join.")] string name)
-    {
-      await _prefix.Verify(ctx.Prefix, async () =>
-      {
-        Messaging messaging = new Messaging(ctx);
         DiscordRole role = ctx.Guild.Roles.First(role => role.Value.Name.Equals(name)).Value;
-        if (ctx.Member.Roles.Contains(role))
+        if (member.Roles.Contains(role))
         {
-          await messaging.RespondContent()($"You are already in {name}.");
+          await messaging.RespondContent()($"{member.Nickname} is already in {name}.");
           return;
         }
-        IEnumerable<ulong> blacklistedRequests = await Program.GetB118DB().GetInviteBlacklistForCampaign(role.Id);
-        DiscordChannel channel = GetCampaignCategory(ctx, name);
-        DiscordMember dm = await GetOwner(ctx, channel);
-        if (blacklistedRequests.Contains(ctx.Member.Id))
+        IEnumerable<ulong> blacklistedInvites = await Program.GetB118DB().GetInviteBlacklistForUser(member.Id);
+        if (blacklistedInvites.Contains(role.Id))
         {
-          await messaging.RespondContent()($"{dm.DisplayName} has already rejected your request to join {name}.");
+          await messaging.RespondContent()($"{member.DisplayName} has already declined to join {name}.");
           return;
         }
         DiscordEmoji checkmark = DiscordEmoji.FromName(ctx.Client, ":white_check_mark:");
         DiscordEmoji cancel = DiscordEmoji.FromName(ctx.Client, ":x:");
-        DiscordMessage message = await dm.SendMessageAsync($"{ctx.User.Username} has requested to join your {name} campaign."
-                                          + $"\nReact {checkmark} to accept the request."
-                                          + $"\nReact {cancel} to reject this and further invites from this user.");
+        DiscordMessage message = await member.SendMessageAsync($"{ctx.User.Username} has invited you to join the {name} campaign."
+                                          + $"\nReact {checkmark} to accept the invitation."
+                                          + $"\nReact {cancel} to decline this and further invites to this campaign.");
         await message.CreateReactionAsync(checkmark);
         await message.CreateReactionAsync(cancel);
         InteractivityExtension interactivity = ctx.Client.GetInteractivity();
         InteractivityResult<DSharpPlus.EventArgs.MessageReactionAddEventArgs> reaction = await interactivity.WaitForReactionAsync((e) =>
-                  e.User.Id.Equals(dm.Id) && e.Message.Id.Equals(message.Id) && (e.Emoji.Name.Equals(checkmark.Name) || e.Emoji.Name.Equals(cancel.Name)),
+                  e.User.Id.Equals(member.Id) && e.Message.Id.Equals(message.Id) && (e.Emoji.Name.Equals(checkmark.Name) || e.Emoji.Name.Equals(cancel.Name)),
                   TimeSpan.FromSeconds(30));
         if (reaction.TimedOut)
         {
-          await message.ModifyAsync($"~~{message.Content}~~\nRequest has expired.");
+          await message.ModifyAsync($"~~{message.Content}~~\nInvite has expired.");
         }
         else
         {
           if (reaction.Result.Emoji.Name == checkmark.Name)
           {
-            await ctx.Member.GrantRoleAsync(role);
+            await member.GrantRoleAsync(role);
             string commandName = name.IndexOf(" ") >= 0 ? $"\"{name}\"" : name;
-            await messaging.RespondContent(true, false)($"{ctx.Member.Mention} has been added to {name}! You can always use `campaign leave {commandName}` to leave.");
+            await messaging.RespondContent(true, false)($"{member.Mention} has been added to {name}! You can always use `campaign leave {commandName}` to leave.");
           }
           else if (reaction.Result.Emoji.Name == cancel.Name)
           {
-            await Program.GetB118DB().BlackListRequest(ctx.Member.Id, role.Id);
-            await dm.SendMessageAsync($"You will no longer receive requests from {ctx.Member.DisplayName}.");
+            await Program.GetB118DB().BlackListInvite(member.Id, role.Id);
+            await member.SendMessageAsync($"You will no longer receive invites from {name}.");
           }
         }
-      });
+      }
+      else
+      {
+        await messaging.RespondContent(false)($"You have to be the DM to invite members to a campaign.");
+      }
+    }
+
+    [Command("join")]
+    [RequirePrefixes("campaign")]
+    [Description("Request to join a campaign.")]
+    public async Task JoinCampaign(CommandContext ctx, [Description("Name of the campaign to join.")] string name)
+    {
+      Messaging messaging = new Messaging(ctx);
+      DiscordRole role = ctx.Guild.Roles.First(role => role.Value.Name.Equals(name)).Value;
+      if (ctx.Member.Roles.Contains(role))
+      {
+        await messaging.RespondContent()($"You are already in {name}.");
+        return;
+      }
+      IEnumerable<ulong> blacklistedRequests = await Program.GetB118DB().GetInviteBlacklistForCampaign(role.Id);
+      DiscordChannel channel = GetCampaignCategory(ctx, name);
+      DiscordMember dm = await GetOwner(ctx, channel);
+      if (blacklistedRequests.Contains(ctx.Member.Id))
+      {
+        await messaging.RespondContent()($"{dm.DisplayName} has already rejected your request to join {name}.");
+        return;
+      }
+      DiscordEmoji checkmark = DiscordEmoji.FromName(ctx.Client, ":white_check_mark:");
+      DiscordEmoji cancel = DiscordEmoji.FromName(ctx.Client, ":x:");
+      DiscordMessage message = await dm.SendMessageAsync($"{ctx.User.Username} has requested to join your {name} campaign."
+                                        + $"\nReact {checkmark} to accept the request."
+                                        + $"\nReact {cancel} to reject this and further invites from this user.");
+      await message.CreateReactionAsync(checkmark);
+      await message.CreateReactionAsync(cancel);
+      InteractivityExtension interactivity = ctx.Client.GetInteractivity();
+      InteractivityResult<DSharpPlus.EventArgs.MessageReactionAddEventArgs> reaction = await interactivity.WaitForReactionAsync((e) =>
+                e.User.Id.Equals(dm.Id) && e.Message.Id.Equals(message.Id) && (e.Emoji.Name.Equals(checkmark.Name) || e.Emoji.Name.Equals(cancel.Name)),
+                TimeSpan.FromSeconds(30));
+      if (reaction.TimedOut)
+      {
+        await message.ModifyAsync($"~~{message.Content}~~\nRequest has expired.");
+      }
+      else
+      {
+        if (reaction.Result.Emoji.Name == checkmark.Name)
+        {
+          await ctx.Member.GrantRoleAsync(role);
+          string commandName = name.IndexOf(" ") >= 0 ? $"\"{name}\"" : name;
+          await messaging.RespondContent(true, false)($"{ctx.Member.Mention} has been added to {name}! You can always use `campaign leave {commandName}` to leave.");
+        }
+        else if (reaction.Result.Emoji.Name == cancel.Name)
+        {
+          await Program.GetB118DB().BlackListRequest(ctx.Member.Id, role.Id);
+          await dm.SendMessageAsync($"You will no longer receive requests from {ctx.Member.DisplayName}.");
+        }
+      }
     }
 
     [Command("remove")]
+    [RequireRoles(RoleCheckMode.All, "DM")]
+    [RequirePrefixes("campaign")]
     [Description("Remove a user from a campaign.")]
     public async Task RemoveFromCampaign(CommandContext ctx, [Description("Name of the campaign to remove a member from.")] string name, [Description("The member to remove.")] DiscordMember member, [Description("Whether or not to disallow this member from requesting to join again.")] bool bar = false)
     {
-      await _prefix.Verify(ctx.Prefix, async () =>
+      Messaging messaging = new Messaging(ctx);
+      DiscordChannel channel = GetCampaignCategory(ctx, name);
+      if (CheckOwnership(ctx, channel))
       {
-        Messaging messaging = new Messaging(ctx);
-        DiscordChannel channel = GetCampaignCategory(ctx, name);
-        if (CheckOwnership(ctx, channel))
+        DiscordRole role = ctx.Guild.Roles.First(role => role.Value.Name.Equals(name)).Value;
+        await member.RevokeRoleAsync(role);
+        if (bar)
         {
-          DiscordRole role = ctx.Guild.Roles.First(role => role.Value.Name.Equals(name)).Value;
-          await member.RevokeRoleAsync(role);
-          if (bar)
-          {
-            await Program.GetB118DB().BlackListRequest(member.Id, role.Id);
-          }
-          await messaging.RespondContent()($"{member.Mention} has been removed from {name}!");
+          await Program.GetB118DB().BlackListRequest(member.Id, role.Id);
         }
-        else
-        {
-          await messaging.RespondContent(false)($"You have to be the DM to remove members from a campaign.");
-        }
-      });
+        await messaging.RespondContent()($"{member.Mention} has been removed from {name}!");
+      }
+      else
+      {
+        await messaging.RespondContent(false)($"You have to be the DM to remove members from a campaign.");
+      }
     }
 
     [Command("leave")]
+    [RequirePrefixes("campaign")]
     [Description("Leave a campaign.")]
     public async Task LeaveCampaign(CommandContext ctx, [Description("Name of the campaign to leave.")] string name, [Description("Whether or not to disallow future invites to this campaign.")] bool bar = false)
     {
-      await _prefix.Verify(ctx.Prefix, async () =>
+      Messaging messaging = new Messaging(ctx);
+      DiscordChannel channel = GetCampaignCategory(ctx, name);
+      if (channel != null)
       {
-        Messaging messaging = new Messaging(ctx);
-        DiscordChannel channel = GetCampaignCategory(ctx, name);
-        if (channel != null)
+        DiscordRole role = ctx.Guild.Roles.First(role => role.Value.Name.Equals(name)).Value;
+        try
         {
-          DiscordRole role = ctx.Guild.Roles.First(role => role.Value.Name.Equals(name)).Value;
-          try
+          await ctx.Member.RevokeRoleAsync(role);
+          if (bar)
           {
-            await ctx.Member.RevokeRoleAsync(role);
-            if (bar)
-            {
-              await Program.GetB118DB().BlackListInvite(ctx.Member.Id, role.Id);
-            }
-            await ctx.Member.SendMessageAsync($"You have left the {name} campaign.");
-            await ctx.Message.DeleteAsync();
+            await Program.GetB118DB().BlackListInvite(ctx.Member.Id, role.Id);
           }
-          catch (Exception)
-          {
-            await messaging.RespondContent()($"You are not a member of {name}.");
-          }
+          await ctx.Member.SendMessageAsync($"You have left the {name} campaign.");
+          await ctx.Message.DeleteAsync();
         }
-        else
+        catch (Exception)
         {
-          await messaging.RespondContent()($"Campaign {name} doesn't exist.");
+          await messaging.RespondContent()($"You are not a member of {name}.");
         }
-      });
+      }
+      else
+      {
+        await messaging.RespondContent()($"Campaign {name} doesn't exist.");
+      }
     }
 
     [Command("delete")]
+    [RequireRoles(RoleCheckMode.All, "DM")]
+    [RequirePrefixes("campaign")]
     [Description("Delete a campaign.")]
     public async Task DeleteCampaign(CommandContext ctx, [Description("Name of the campaign to delete.")] string name)
     {
-      await _prefix.Verify(ctx.Prefix, async () =>
+      DiscordChannel channel = GetCampaignCategory(ctx, name);
+      if (CheckOwnership(ctx, channel))
       {
-        DiscordChannel channel = GetCampaignCategory(ctx, name);
-        if (CheckOwnership(ctx, channel))
+        KeyValuePair<ulong, DiscordRole> role = ctx.Guild.Roles.First(role => role.Value.Name.Equals(name));
+        DiscordMember member = ctx.Member;
+        try
         {
-          KeyValuePair<ulong, DiscordRole> role = ctx.Guild.Roles.First(role => role.Value.Name.Equals(name));
-          DiscordMember member = ctx.Member;
-          try
-          {
-            await ctx.Message.DeleteAsync();
-          }
-          catch (Exception) { }
-          foreach (DiscordChannel child in channel.Children)
-          {
-            await child.DeleteAsync($"Deleting {name} Campaign");
-          }
-          await role.Value.DeleteAsync();
-          await member.SendMessageAsync($"Campaign {name} has been deleted.");
-          await channel.DeleteAsync();
+          await ctx.Message.DeleteAsync();
         }
-        else
+        catch (Exception) { }
+        foreach (DiscordChannel child in channel.Children)
         {
-          Messaging messaging = new Messaging(ctx);
-          await messaging.RespondContent()($"You don't have permission to delete the {name} campaign.");
+          await child.DeleteAsync($"Deleting {name} Campaign");
         }
-      });
+        await role.Value.DeleteAsync();
+        await member.SendMessageAsync($"Campaign {name} has been deleted.");
+        await channel.DeleteAsync();
+      }
+      else
+      {
+        Messaging messaging = new Messaging(ctx);
+        await messaging.RespondContent()($"You don't have permission to delete the {name} campaign.");
+      }
     }
 
     [Command("rename")]
+    [RequireRoles(RoleCheckMode.All, "DM")]
+    [RequirePrefixes("campaign")]
     [Description("Rename a campaign.")]
     public async Task RenameCampaign(CommandContext ctx, [Description("Name of the campaign to rename.")] string currentName, [Description("New name for the campaign.")] string nextName)
     {
-      await _prefix.Verify(ctx.Prefix, async () =>
+      Messaging messaging = new Messaging(ctx);
+      DiscordChannel channel = GetCampaignCategory(ctx, currentName);
+      if (CheckOwnership(ctx, channel))
       {
-        Messaging messaging = new Messaging(ctx);
-        DiscordChannel channel = GetCampaignCategory(ctx, currentName);
-        if (CheckOwnership(ctx, channel))
+        DiscordChannel nextChannel = GetCampaignCategory(ctx, nextName);
+        KeyValuePair<ulong, DiscordRole> nextRole = ctx.Guild.Roles.FirstOrDefault(role => role.Value.Name.Equals(nextName));
+        if (nextChannel == null && nextRole.Value == null)
         {
-          DiscordChannel nextChannel = GetCampaignCategory(ctx, nextName);
-          KeyValuePair<ulong, DiscordRole> nextRole = ctx.Guild.Roles.FirstOrDefault(role => role.Value.Name.Equals(nextName));
-          if (nextChannel == null && nextRole.Value == null)
-          {
-            Action<DSharpPlus.Net.Models.ChannelEditModel> action = new Action<DSharpPlus.Net.Models.ChannelEditModel>((target) =>
-                  {
-                    target.Name = nextName;
-                  });
-            await channel.ModifyAsync(action);
-            KeyValuePair<ulong, DiscordRole> role = ctx.Guild.Roles.FirstOrDefault(role => role.Value.Name.Equals(currentName));
-            await role.Value.ModifyAsync(nextName);
-            await messaging.RespondContent()($"{currentName} has been renamed to {nextName}");
-          }
+          Action<DSharpPlus.Net.Models.ChannelEditModel> action = new Action<DSharpPlus.Net.Models.ChannelEditModel>((target) =>
+                {
+                  target.Name = nextName;
+                });
+          await channel.ModifyAsync(action);
+          KeyValuePair<ulong, DiscordRole> role = ctx.Guild.Roles.FirstOrDefault(role => role.Value.Name.Equals(currentName));
+          await role.Value.ModifyAsync(nextName);
+          await messaging.RespondContent()($"{currentName} has been renamed to {nextName}");
         }
-        else
-        {
-          await messaging.RespondContent()("You must be the DM to rename a channel.");
-        }
-      });
+      }
+      else
+      {
+        await messaging.RespondContent()("You must be the DM to rename a channel.");
+      }
     }
   }
 }
