@@ -9,7 +9,6 @@ using DSharpPlus.CommandsNext.Exceptions;
 using DSharpPlus.Entities;
 using DSharpPlus.Lavalink;
 using DSharpPlus.Net;
-using b_118.Exceptions;
 using b_118.Models;
 using b_118.Utility;
 using b_118.Database;
