@@ -18,7 +18,6 @@ namespace b_118.Database
             _version = 3;
             if (!System.IO.File.Exists($"{databaseName}.sqlite"))
             {
-                Console.WriteLine($"{databaseName}.sqlite DNE");
                 SQLiteConnection.CreateFile($"{databaseName}.sqlite");
             }
         }
@@ -29,7 +28,6 @@ namespace b_118.Database
             _version = version;
             if (!System.IO.File.Exists($"{databaseName}.sqlite"))
             {
-                Console.WriteLine($"{databaseName}.sqlite DNE");
                 SQLiteConnection.CreateFile($"{databaseName}.sqlite");
             }
         }

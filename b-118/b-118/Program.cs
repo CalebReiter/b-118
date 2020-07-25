@@ -14,7 +14,6 @@ using b_118.Models;
 using b_118.Utility;
 using b_118.Database;
 using DSharpPlus.Interactivity;
-using DSharpPlus.Interactivity.Enums;
 
 namespace b_118
 {

@@ -2,9 +2,7 @@
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace b_118.Utility
 {
