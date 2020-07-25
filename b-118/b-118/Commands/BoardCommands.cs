@@ -99,7 +99,7 @@ namespace b_118.Commands
             await _prefix.Verify(ctx.Prefix, async () =>
             {
                 string m = $"**{board} Sounds**";   
-                foreach (var name in Program.GetB118SoundClip().ListFileNames(board))
+                foreach (string name in Program.GetB118SoundClip().ListFileNames(board))
                 {
                     m += $"\n{board}/{name}";
               }

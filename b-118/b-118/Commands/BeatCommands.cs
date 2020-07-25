@@ -103,7 +103,7 @@ namespace b_118.Commands
                 {
                     LavalinkLoadResult results = await lavalinkNodeConnection.Rest.GetTracksAsync(uri);
                     if (results.Exception.Message != null) throw new Exception(results.Exception.Message);
-                    var tracks = results.Tracks;
+                    IEnumerable<LavalinkTrack> tracks = results.Tracks;
                     if (tracks.Count() == 0) throw new InvalidOperationException($"Could not find `{uri.OriginalString}`.");
                     track = tracks.First();
                 }
@@ -111,7 +111,7 @@ namespace b_118.Commands
                 {
                     if (Enum.TryParse(source, true, out LavalinkSearchType lavalinkSearchType))
                     {
-                        var tracks = lavalinkNodeConnection.Rest.GetTracksAsync(song, lavalinkSearchType).GetAwaiter().GetResult().Tracks;
+                        IEnumerable<LavalinkTrack> tracks = lavalinkNodeConnection.Rest.GetTracksAsync(song, lavalinkSearchType).GetAwaiter().GetResult().Tracks;
                         if (tracks.Count() == 0) throw new InvalidOperationException($"There were 0 results for `{song}`.");
                         track = tracks.First();
                     }
@@ -279,12 +279,12 @@ namespace b_118.Commands
             Messaging messaging = new Messaging(ctx);
             if (queues[ctx.Guild.Id].Count > 0)
             {
-                var track = (LavalinkTrack)queues[ctx.Guild.Id].Dequeue();
+                LavalinkTrack track = (LavalinkTrack)queues[ctx.Guild.Id].Dequeue();
                 await lavalinkGuildConnection.PlayAsync(track);
                 await messaging.RespondContent(false, track.Length)($"🎤 {track.Author} - {track.Title}");
                 if (loops[ctx.Guild.Id] && uri != null)
                 {
-                    var newTrack = lavalinkNodeConnection.Rest.GetTracksAsync(uri).GetAwaiter().GetResult().Tracks.First();
+                    LavalinkTrack newTrack = lavalinkNodeConnection.Rest.GetTracksAsync(uri).GetAwaiter().GetResult().Tracks.First();
                     queues[ctx.Guild.Id].Enqueue(newTrack);
                 }
             } else
