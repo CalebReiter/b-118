@@ -35,8 +35,8 @@ namespace b_118
 
         static void Main(string[] args)
         {
-            var environmentName = Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Production";
-            var builder = new ConfigurationBuilder()
+            string environmentName = Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Production";
+            IConfigurationBuilder builder = new ConfigurationBuilder()
                 .AddJsonFile($"appsettings.json", true, true)
                 .AddJsonFile($"appsettings.{environmentName}.json", true, true)
                 .AddEnvironmentVariables();
@@ -91,8 +91,8 @@ namespace b_118
         static async Task MainAsync(string[] args)
         {
             await b118DB.Init();
-            var count = await b118DB.CountBlackListedInvites();
-            var discordConfiguration = new DiscordConfiguration
+            int count = await b118DB.CountBlackListedInvites();
+            DiscordConfiguration discordConfiguration = new DiscordConfiguration
             {
                 UseInternalLogHandler = true,
                 LogLevel = logLevel,
@@ -127,7 +127,7 @@ namespace b_118
 
             discord.ClientErrored += ClientErrored;
 
-            var commandsNextConfiguration = new CommandsNextConfiguration
+            CommandsNextConfiguration commandsNextConfiguration = new CommandsNextConfiguration
             {
                 StringPrefixes = Prefixes,
                 EnableDms = true,
@@ -244,9 +244,9 @@ namespace b_118
 
                 if (e.Exception is ChecksFailedException)
                 {
-                    var emoji = DiscordEmoji.FromName(e.Context.Client, ":no_entry:");
+                    DiscordEmoji emoji = DiscordEmoji.FromName(e.Context.Client, ":no_entry:");
 
-                    var embed = new DiscordEmbedBuilder
+                    DiscordEmbedBuilder embed = new DiscordEmbedBuilder
                     {
                         Title = "Access denied",
                         Description = $"{emoji} You do not have the permissions required to execute this command.",

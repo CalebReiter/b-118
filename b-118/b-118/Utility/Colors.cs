@@ -27,7 +27,7 @@ namespace b_118.Utility
 
         private static DiscordColor GetColor(IConfiguration configuration, string key, string fallback)
         {
-            var section = configuration.GetSection("Colors");
+            IConfigurationSection section = configuration.GetSection("Colors");
             if (section.Exists())
             {
                 if (section[key] != null)

@@ -36,7 +36,7 @@ namespace b_118.Utility
 
         private DSharpPlus.Permissions GetPermissions()
         {
-            var name = _user.Username;
+            string name = _user.Username;
             return _guild.Roles.First(role => role.Value.Name.Equals(name)).Value.Permissions;
         }
 

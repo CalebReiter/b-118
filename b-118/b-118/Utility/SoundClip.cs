@@ -24,7 +24,7 @@ namespace b_118.Utility
 
         public bool Verify(FileInfo fileInfo)
         {
-            var success = System.Text.RegularExpressions.Regex.Match(fileInfo.FullName, _regex).Success;
+            bool success = System.Text.RegularExpressions.Regex.Match(fileInfo.FullName, _regex).Success;
             return fileInfo.Exists && success && fileInfo.Extension == _extension;
         }
 
@@ -32,7 +32,7 @@ namespace b_118.Utility
         {
             DirectoryInfo directoryInfo = new DirectoryInfo(_directory);
             List<string> names = new List<string>();
-            foreach (var d in directoryInfo.GetDirectories())
+            foreach (DirectoryInfo d in directoryInfo.GetDirectories())
             {
                 names.Add(d.Name);
             }
@@ -41,7 +41,7 @@ namespace b_118.Utility
 
         public string[] ListFileNames(string directory)
         {
-            var success = System.Text.RegularExpressions.Regex.Match(directory, "^[a-zA-Z0-9_]*$").Success;
+            bool success = System.Text.RegularExpressions.Regex.Match(directory, "^[a-zA-Z0-9_]*$").Success;
             if (!success)
             {
                 throw new InvalidOperationException("Invalid board name.");
@@ -52,7 +52,7 @@ namespace b_118.Utility
                 throw new InvalidOperationException("Board doesn't exist.");
             }
             List<string> names = new List<string>();
-            foreach (var f in directoryInfo.GetFiles())
+            foreach (FileInfo f in directoryInfo.GetFiles())
             {
                 names.Add(f.Name.Split(f.Extension)[0]);
             }

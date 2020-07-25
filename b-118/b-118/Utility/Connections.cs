@@ -9,8 +9,8 @@ namespace b_118.Utility {
 
     public static async Task<LavalinkNodeConnection> GetNodeConnection(CommandContext ctx, bool newConnection = false)
     {
-      var lavalink = ctx.Client.GetLavalink();
-      var lavalinkNodeConnection = lavalink.GetNodeConnection(Program.GetLavalinkConnectionEndpoint());
+      LavalinkExtension lavalink = ctx.Client.GetLavalink();
+      LavalinkNodeConnection lavalinkNodeConnection = lavalink.GetNodeConnection(Program.GetLavalinkConnectionEndpoint());
       if (lavalinkNodeConnection == null)
       {
         lavalinkNodeConnection = await lavalink.ConnectAsync(Program.GetLavalinkConfiguration());

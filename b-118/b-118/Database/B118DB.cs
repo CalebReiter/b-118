@@ -32,7 +32,7 @@ namespace b_118.Database
             if (!hasInitialized)
                 throw new InvalidOperationException("B118DB must be initalized first.");
             string sql = "select count(*) from inviteblacklist";
-            var results = await _dbConnection.GetConnection().QueryFirstAsync<int>(sql);
+            int results = await _dbConnection.GetConnection().QueryFirstAsync<int>(sql);
             return results;
         }
 
@@ -46,7 +46,7 @@ namespace b_118.Database
                 userid,
                 roleid
             };
-            var results = await _dbConnection.GetConnection().ExecuteAsync(sql, param);
+            int results = await _dbConnection.GetConnection().ExecuteAsync(sql, param);
             return results;
         }
 

@@ -48,7 +48,7 @@ namespace b_118.Database
                 return _hasInitialized;
             try
             {
-                var connection = new SQLiteConnection(GetDatabaseConnectionString());
+                SQLiteConnection connection = new SQLiteConnection(GetDatabaseConnectionString());
                 await connection.ExecuteAsync(sql, param, transaction, commandTimeout, commandType);
                 _hasInitialized = true;
             } catch (Exception x)
