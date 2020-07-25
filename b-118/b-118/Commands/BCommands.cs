@@ -43,6 +43,7 @@ namespace b_118.Commands
         /// <param name="ctx">The CommandContext for the message.</param>
         /// <param name="alias">Alias to execute.</param>
         [Command("alias")]
+        [Description("Execute an alias.")]
         public async Task Alias(CommandContext ctx, [Description("Command to execute.")] string alias)
         {
             await _prefix.Verify(ctx.Prefix, async () =>
@@ -174,7 +175,7 @@ namespace b_118.Commands
                         return false;
                     }
                 }
-                ).Single();
+                ).First();
                 DescriptionAttribute methodDescription = (DescriptionAttribute)method.GetCustomAttributes(typeof(DescriptionAttribute), false).First();
                 string content = methodDescription.Description;
                 IEnumerable<ParameterInfo> parameters = method.GetParameters().Where(parameter =>
