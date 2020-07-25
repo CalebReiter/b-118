@@ -19,44 +19,15 @@ namespace b_118.Commands
     class BeatCommands : BaseCommandModule
     {
 
-        private LavalinkConfiguration lavalinkConfiguration { get; set; }
         private ConcurrentDictionary<ulong, Queue> queues { get; set; }
         private ConcurrentDictionary<ulong, bool> loops { get; set; }
         public readonly CustomPrefix _prefix;
 
         public BeatCommands()
         {
-            lavalinkConfiguration = Program.GetLavalinkConfiguration();
             queues = new ConcurrentDictionary<ulong, Queue>();
             loops = new ConcurrentDictionary<ulong, bool>();
             _prefix = new CustomPrefix("beat");
-        }
-
-        private async Task<LavalinkNodeConnection> GetNodeConnection(CommandContext ctx, bool newConnection = false)
-        {
-            var lavalink = ctx.Client.GetLavalink();
-            var lavalinkNodeConnection = lavalink.GetNodeConnection(Program.GetLavalinkConnectionEndpoint());
-            if (lavalinkNodeConnection == null)
-            {
-                lavalinkNodeConnection = await lavalink.ConnectAsync(lavalinkConfiguration);
-            }
-            return lavalinkNodeConnection;
-        }
-
-        private async Task<LavalinkGuildConnection> GetGuildConnection(CommandContext ctx, DiscordChannel channel, LavalinkNodeConnection lavalinkNodeConnection)
-        {
-            if (channel == null)
-                channel = ctx.Member?.VoiceState?.Channel;
-
-            if (channel == null)
-                throw new InvalidOperationException("You need to be in a voice channel.");
-
-            if (lavalinkNodeConnection.GetConnection(ctx.Guild) != null)
-            {
-                throw new InvalidOperationException("I am already connected in this guild.");
-            }
-
-            return await lavalinkNodeConnection.ConnectAsync(channel);
         }
 
         [Command("loop")]
@@ -79,8 +50,8 @@ namespace b_118.Commands
         {
             await _prefix.Verify(ctx.Prefix, async () =>
             {
-                LavalinkNodeConnection lavalinkNodeConnection = await GetNodeConnection(ctx, true);
-                LavalinkGuildConnection lavalinkGuildConnection = await GetGuildConnection(ctx, channel, lavalinkNodeConnection);
+                LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx, true);
+                LavalinkGuildConnection lavalinkGuildConnection = await Connections.GetGuildConnection(ctx, channel, lavalinkNodeConnection);
                 queues.TryAdd(ctx.Guild.Id, new Queue());
                 loops.TryAdd(ctx.Guild.Id, false);
                 await lavalinkGuildConnection.SetVolumeAsync(25);
@@ -126,7 +97,7 @@ namespace b_118.Commands
         public async Task Play(CommandContext ctx, [Description("URI to the audio to play.")] string song, [Description("Source to search from. {Youtube, SoundCloud}")] string source = "Youtube")
         {
             await _prefix.Verify(ctx.Prefix, async () => {
-                LavalinkNodeConnection lavalinkNodeConnection = await GetNodeConnection(ctx);
+                LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
                 LavalinkTrack track = null;
                 if (Uri.TryCreate(song, UriKind.Absolute, out Uri uri))
                 {
@@ -171,7 +142,7 @@ namespace b_118.Commands
         {
             await _prefix.Verify(ctx.Prefix, async () =>
             {
-                LavalinkNodeConnection lavalinkNodeConnection = await GetNodeConnection(ctx);
+                LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
                 LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
                 LavalinkPlayerState currentState = lavalinkGuildConnection.CurrentState;
                 if (currentState != null) await SkipSong(ctx, lavalinkNodeConnection, lavalinkGuildConnection);
@@ -184,7 +155,7 @@ namespace b_118.Commands
         {
             await _prefix.Verify(ctx.Prefix, async () =>
             {
-                LavalinkNodeConnection lavalinkNodeConnection = await GetNodeConnection(ctx);
+                LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
                 LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
                 queues[ctx.Guild.Id].Clear();
                 loops[ctx.Guild.Id] = false;
@@ -201,7 +172,7 @@ namespace b_118.Commands
         {
             await _prefix.Verify(ctx.Prefix, async () =>
             {
-                LavalinkNodeConnection lavalinkNodeConnection = await GetNodeConnection(ctx);
+                LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
                 LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
                 await lavalinkGuildConnection.PauseAsync();
 
@@ -216,7 +187,7 @@ namespace b_118.Commands
         {
             await _prefix.Verify(ctx.Prefix, async () =>
             {
-                LavalinkNodeConnection lavalinkNodeConnection = await GetNodeConnection(ctx);
+                LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
                 LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
                 await lavalinkGuildConnection.ResumeAsync();
 
@@ -235,7 +206,7 @@ namespace b_118.Commands
                 {
                     throw new InvalidOperationException($"Volume `{volume}` is not between 0 and 200.");
                 }
-                LavalinkNodeConnection lavalinkNodeConnection = await GetNodeConnection(ctx);
+                LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
                 LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
                 await lavalinkGuildConnection.SetVolumeAsync(volume);
 
@@ -264,7 +235,7 @@ namespace b_118.Commands
                         break;
                     }
                 }
-                LavalinkNodeConnection lavalinkNodeConnection = await GetNodeConnection(ctx);
+                LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
                 LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
                 TimeSpan currentPosition = lavalinkGuildConnection.CurrentState.PlaybackPosition;
                 string emoji = action == "+" || action == "add" ? "⏩" : action == "subtract" || action == "-" ? "⏪" : currentPosition > position ? "⏪" : "⏩";
@@ -282,7 +253,7 @@ namespace b_118.Commands
         {
             await _prefix.Verify(ctx.Prefix, async () =>
             {
-                LavalinkNodeConnection lavalinkNodeConnection = await GetNodeConnection(ctx);
+                LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
                 LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
 
                 if (lavalinkGuildConnection != null)
