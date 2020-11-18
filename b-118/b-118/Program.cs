@@ -13,6 +13,8 @@ using b_118.Models;
 using b_118.Utility;
 using b_118.Database;
 using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace b_118
 {
@@ -23,7 +25,7 @@ namespace b_118
     static string lavalinkPassword;
     static string lavalinkHostname;
     static int lavalinkPort;
-    static LogLevel logLevel = LogLevel.Info;
+    static LogLevel logLevel = LogLevel.Information;
     static CommandsNextExtension commands;
     static InteractivityExtension interactivity;
     static LavalinkExtension lavalink;
@@ -59,26 +61,25 @@ namespace b_118
       await b118DB.Init();
       DiscordConfiguration discordConfiguration = new DiscordConfiguration
       {
-        UseInternalLogHandler = true,
-        LogLevel = logLevel,
+        MinimumLogLevel = logLevel,
         Token = token,
         TokenType = TokenType.Bot
       };
 
       discord = new DiscordClient(discordConfiguration);
 
-      discord.Ready += async (ReadyEventArgs e) =>
+      discord.Ready += async (DiscordClient client, ReadyEventArgs e) =>
       {
         await discord.UpdateStatusAsync(new DiscordActivity("The Bee Movie | b.help", ActivityType.Watching));
       };
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-      discord.GuildAvailable += async (GuildCreateEventArgs e) =>
+      discord.GuildAvailable += async (DiscordClient client, GuildCreateEventArgs e) =>
       {
-        GuildDetails.AddClientGuild(e.Client, e.Guild);
+        GuildDetails.AddClientGuild(client, e.Guild);
       };
 
-      discord.MessageCreated += async (MessageCreateEventArgs e) =>
+      discord.MessageCreated += async (DiscordClient client, MessageCreateEventArgs e) =>
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
       {
         if (e.Author.IsBot)
@@ -98,7 +99,6 @@ namespace b_118
         EnableDms = true,
         EnableDefaultHelp = false
       };
-
       interactivity = discord.UseInteractivity(new InteractivityConfiguration()
       {
         Timeout = TimeSpan.FromSeconds(30)
@@ -148,7 +148,7 @@ namespace b_118
       };
     }
 
-    private static async Task Beep(MessageCreateEventArgs e)
+    private static async Task Beep(DiscordClient client, MessageCreateEventArgs e)
     {
       if (e.Message.Content.ToLower() == "beep")
       {
@@ -156,7 +156,7 @@ namespace b_118
       }
     }
 
-    private static async Task Bees(MessageCreateEventArgs e)
+    private static async Task Bees(DiscordClient client, MessageCreateEventArgs e)
     {
       if (e.Message.Content.ToLower() == "bees?")
       {
@@ -171,7 +171,7 @@ namespace b_118
       }
     }
 
-    private static async Task BeeReaction(MessageCreateEventArgs e)
+    private static async Task BeeReaction(DiscordClient client, MessageCreateEventArgs e)
     {
       if (e.Message.Content.Contains(new char[] { 'b', 'B' }))
       {
@@ -187,23 +187,22 @@ namespace b_118
       }
     }
 
-    private static Task ClientErrored(ClientErrorEventArgs e)
+    private static Task ClientErrored(DiscordClient client, ClientErrorEventArgs e)
     {
-      e.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", "Exception occured", DateTime.Now, e.Exception);
+      client.Logger.Log(LogLevel.Error, "B-118", "Exception occured", DateTime.Now, e.Exception);
+      return Task.CompletedTask;
+    }
+
+    private static Task CommandExecuted(CommandsNextExtension next, CommandExecutionEventArgs e)
+    {
+      e.Context.Client.Logger.Log(LogLevel.Information, "B-118", $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'", DateTime.Now);
 
       return Task.CompletedTask;
     }
 
-    private static Task CommandExecuted(CommandExecutionEventArgs e)
+    private static async Task CommandErrored(CommandsNextExtension next, CommandErrorEventArgs e)
     {
-      e.Context.Client.DebugLogger.LogMessage(LogLevel.Info, "B-118", $"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'", DateTime.Now);
-
-      return Task.CompletedTask;
-    }
-
-    private static async Task CommandErrored(CommandErrorEventArgs e)
-    {
-      e.Context.Client.DebugLogger.LogMessage(LogLevel.Error, "B-118", $"{e.Context.User.Username} tried executing '{e.Command?.QualifiedName ?? "<unknown command>"}' but it errored.", DateTime.Now, e.Exception);
+      e.Context.Client.Logger.Log(LogLevel.Error, "B-118", $"{e.Context.User.Username} tried executing '{e.Command?.QualifiedName ?? "<unknown command>"}' but it errored.", DateTime.Now, e.Exception);
 
       if (e.Exception is ChecksFailedException)
       {

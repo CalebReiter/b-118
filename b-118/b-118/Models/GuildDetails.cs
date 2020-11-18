@@ -4,6 +4,7 @@ using DSharpPlus.Lavalink;
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace b_118.Models
 {
@@ -28,7 +29,7 @@ namespace b_118.Models
 
         public static void AddClientGuild(DiscordClient discord, DiscordGuild guild)
         {
-            discord.DebugLogger.LogMessage(LogLevel.Info, "B-118", $"{guild.Name} has joined the fleet!", DateTime.Now);
+            discord.Logger.Log(LogLevel.Information, "B-118", $"{guild.Name} has joined the fleet!", DateTime.Now);
             ClientGuilds[guild.Id] = new GuildDetails();
         }
 

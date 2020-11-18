@@ -117,7 +117,7 @@ namespace b_118.Commands
           throw new InvalidOperationException($"`{source}` is not a valid source.");
         }
       }
-      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
+      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetGuildConnection(ctx.Guild);
       Messaging messaging = new Messaging(ctx);
       if (lavalinkGuildConnection.CurrentState.CurrentTrack == null)
       {
@@ -138,7 +138,7 @@ namespace b_118.Commands
     public async Task Skip(CommandContext ctx)
     {
       LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
-      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
+      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetGuildConnection(ctx.Guild);
       LavalinkPlayerState currentState = lavalinkGuildConnection.CurrentState;
       if (currentState != null) await SkipSong(ctx, lavalinkNodeConnection, lavalinkGuildConnection);
     }
@@ -149,7 +149,7 @@ namespace b_118.Commands
     public async Task Stop(CommandContext ctx)
     {
       LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
-      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
+      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetGuildConnection(ctx.Guild);
       queues[ctx.Guild.Id].Clear();
       loops[ctx.Guild.Id] = false;
       await lavalinkGuildConnection.StopAsync();
@@ -164,7 +164,7 @@ namespace b_118.Commands
     public async Task Pause(CommandContext ctx)
     {
       LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
-      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
+      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetGuildConnection(ctx.Guild);
       await lavalinkGuildConnection.PauseAsync();
 
       Messaging messaging = new Messaging(ctx);
@@ -177,7 +177,7 @@ namespace b_118.Commands
     public async Task Resume(CommandContext ctx)
     {
       LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
-      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
+      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetGuildConnection(ctx.Guild);
       await lavalinkGuildConnection.ResumeAsync();
 
       Messaging messaging = new Messaging(ctx);
@@ -194,7 +194,7 @@ namespace b_118.Commands
         throw new InvalidOperationException($"Volume `{volume}` is not between 0 and 200.");
       }
       LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
-      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
+      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetGuildConnection(ctx.Guild);
       await lavalinkGuildConnection.SetVolumeAsync(volume);
 
       Messaging messaging = new Messaging(ctx);
@@ -221,7 +221,7 @@ namespace b_118.Commands
         }
       }
       LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
-      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
+      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetGuildConnection(ctx.Guild);
       TimeSpan currentPosition = lavalinkGuildConnection.CurrentState.PlaybackPosition;
       string emoji = action == "+" || action == "add" ? "⏩" : action == "subtract" || action == "-" ? "⏪" : currentPosition > position ? "⏪" : "⏩";
       if (action == "+" || action == "add") currentPosition += position;
@@ -237,7 +237,7 @@ namespace b_118.Commands
     public async Task Leave(CommandContext ctx)
     {
       LavalinkNodeConnection lavalinkNodeConnection = await Connections.GetNodeConnection(ctx);
-      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
+      LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetGuildConnection(ctx.Guild);
 
       if (lavalinkGuildConnection != null)
       {
@@ -276,9 +276,9 @@ namespace b_118.Commands
       }
     }
 
-    public DSharpPlus.AsyncEventHandler<TrackFinishEventArgs> PlayNextSong(CommandContext ctx, LavalinkNodeConnection lavalinkNodeConnection, LavalinkGuildConnection lavalinkGuildConnection)
+    public Emzi0767.Utilities.AsyncEventHandler<LavalinkGuildConnection, TrackFinishEventArgs> PlayNextSong(CommandContext ctx, LavalinkNodeConnection lavalinkNodeConnection, LavalinkGuildConnection lavalinkGuildConnection)
     {
-      return async (TrackFinishEventArgs e) =>
+      return async (LavalinkGuildConnection g, TrackFinishEventArgs e) =>
       {
         await PlayNextSongIfExists(ctx, lavalinkNodeConnection, lavalinkGuildConnection, e.Track.Uri);
       };

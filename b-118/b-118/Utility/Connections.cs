@@ -26,7 +26,7 @@ namespace b_118.Utility {
       if (channel == null)
         throw new InvalidOperationException("You need to be in a voice channel.");
 
-      if (lavalinkNodeConnection.GetConnection(ctx.Guild) != null)
+      if (lavalinkNodeConnection.GetGuildConnection(ctx.Guild) != null)
       {
         throw new InvalidOperationException("I am already connected in this guild.");
       }

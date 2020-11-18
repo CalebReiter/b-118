@@ -3,6 +3,7 @@ using System;
 using System.Threading.Tasks;
 using DSharpPlus.Entities;
 using DSharpPlus;
+using Microsoft.Extensions.Logging;
 
 namespace b_118.Utility
 {
@@ -180,7 +181,7 @@ namespace b_118.Utility
 
     private bool LogError(Exception ex)
     {
-      _client.DebugLogger.LogMessage(LogLevel.Error, "B-118", "", DateTime.Now, ex);
+      _client.Logger.Log(LogLevel.Error, "B-118", "", DateTime.Now, ex);
       return false;
     }
   }

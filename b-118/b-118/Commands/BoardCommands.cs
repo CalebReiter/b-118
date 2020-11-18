@@ -37,7 +37,7 @@ namespace b_118.Commands
       if (Program.GetB118SoundClip().Verify(clip))
       {
         LavalinkTrack track = lavalinkNodeConnection.Rest.GetTracksAsync(clip).GetAwaiter().GetResult().Tracks.First();
-        LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetConnection(ctx.Guild);
+        LavalinkGuildConnection lavalinkGuildConnection = lavalinkNodeConnection.GetGuildConnection(ctx.Guild);
         if (volume.HasValue && volume >= 0 && volume <= 200)
         {
           await lavalinkGuildConnection.SetVolumeAsync(volume.Value);
