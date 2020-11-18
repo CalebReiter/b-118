@@ -27,11 +27,11 @@ namespace b_118.Commands
     {
       queues = new ConcurrentDictionary<ulong, Queue>();
       loops = new ConcurrentDictionary<ulong, bool>();
-      _prefix = new CustomPrefix("beat");
+      _prefix = new CustomPrefix("b-beat");
     }
 
     [Command("loop")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will loop the current queue, or stop looping if loop was true.")]
     public async Task Loop(CommandContext ctx, [Description("Whether to loop or not")] bool? loop = null)
     {
@@ -43,7 +43,7 @@ namespace b_118.Commands
     }
 
     [Command("enter")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will join the specified channel, or if not given, the current voice channel the user is in.")]
     public async Task Join(CommandContext ctx, [Description("The channel to add B-118 to.")] DiscordChannel channel = null)
     {
@@ -58,7 +58,7 @@ namespace b_118.Commands
     }
 
     [Command("list")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will list the current queue.")]
     public async Task List(CommandContext ctx)
     {
@@ -90,7 +90,7 @@ namespace b_118.Commands
     }
 
     [Command("play")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will attempt to play the given audio.")]
     public async Task Play(CommandContext ctx, [Description("URI to the audio to play.")] string song, [Description("Source to search from. {Youtube, SoundCloud}")] string source = "Youtube")
     {
@@ -133,7 +133,7 @@ namespace b_118.Commands
     }
 
     [Command("skip")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will skip the rest of the current track.")]
     public async Task Skip(CommandContext ctx)
     {
@@ -144,7 +144,7 @@ namespace b_118.Commands
     }
 
     [Command("stop")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will stop playing the current audio.")]
     public async Task Stop(CommandContext ctx)
     {
@@ -159,7 +159,7 @@ namespace b_118.Commands
     }
 
     [Command("pause")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will pause the current audio.")]
     public async Task Pause(CommandContext ctx)
     {
@@ -172,7 +172,7 @@ namespace b_118.Commands
     }
 
     [Command("resume")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will resume the paused audio.")]
     public async Task Resume(CommandContext ctx)
     {
@@ -185,7 +185,7 @@ namespace b_118.Commands
     }
 
     [Command("volume")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will set the volume of the audio.")]
     public async Task Volume(CommandContext ctx, [Description("The volume to set it to. Min. 0, Max. 200.")] int volume)
     {
@@ -203,7 +203,7 @@ namespace b_118.Commands
     }
 
     [Command("seek")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will seek to the given time.")]
     public async Task Seek(CommandContext ctx, [Description("Time to seek to.")] string time, [Description("Set to `+` or `-` to seek a relative time.")] string action = "seek")
     {
@@ -232,7 +232,7 @@ namespace b_118.Commands
     }
 
     [Command("exit")]
-    [RequirePrefixes("beat")]
+    [RequirePrefixes("b-beat")]
     [Description("B-118 will leave the voice channel.")]
     public async Task Leave(CommandContext ctx)
     {

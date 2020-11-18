@@ -24,11 +24,11 @@ namespace b_118.Commands
     {
       queues = new ConcurrentDictionary<ulong, Queue>();
       loops = new ConcurrentDictionary<ulong, bool>();
-      _prefix = new CustomPrefix("sound");
+      _prefix = new CustomPrefix("b-sound");
     }
 
     [Command("board")]
-    [RequirePrefixes("sound")]
+    [RequirePrefixes("b-sound")]
     [Description("B-118 will play a sound from his sound board.")]
     public async Task Board(CommandContext ctx, [Description("The sound to play.")] string sound, [Description("The volume to play the sound at.")] int? volume = null, [Description("The volume to set after the sound plays.")] int? postVolume = null)
     {
@@ -75,7 +75,7 @@ namespace b_118.Commands
     }
 
     [Command("boards")]
-    [RequirePrefixes("sound")]
+    [RequirePrefixes("b-sound")]
     [Hidden]
     public async Task Boards(CommandContext ctx)
     {
@@ -89,7 +89,7 @@ namespace b_118.Commands
     }
 
     [Command("boards")]
-    [RequirePrefixes("sound")]
+    [RequirePrefixes("b-sound")]
     [Description("List the available sound boards, or the available sounds in a given board.")]
     public async Task Boards(CommandContext ctx, [Description("The board to list the sounds of.")] string board)
     {

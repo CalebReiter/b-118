@@ -27,7 +27,7 @@ namespace b_118
     static CommandsNextExtension commands;
     static InteractivityExtension interactivity;
     static LavalinkExtension lavalink;
-    public static string[] Prefixes = new string[] { "b.", "beat", "campaign", "sound" };
+    public static string[] Prefixes = new string[] { "b.", "b-beat", "b-campaign", "b-sound" };
     private static IConfiguration configuration;
     private static B118DB b118DB;
     private static SoundClip b118SoundClip;
@@ -69,7 +69,7 @@ namespace b_118
 
       discord.Ready += async (ReadyEventArgs e) =>
       {
-        await discord.UpdateStatusAsync(new DiscordActivity("The Bee Movie", ActivityType.Watching));
+        await discord.UpdateStatusAsync(new DiscordActivity("The Bee Movie | b.help", ActivityType.Watching));
       };
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
@@ -161,13 +161,13 @@ namespace b_118
       if (e.Message.Content.ToLower() == "bees?")
       {
         await e.Message.RespondAsync("According to all known laws of aviation,"
-                                   + "there is no way a bee should be able to fly."
-                                   + "Its wings are too small to get its fat little body off the ground.", true);
+                                   + " there is no way a bee should be able to fly."
+                                   + " Its wings are too small to get its fat little body off the ground.", true);
         await e.Message.RespondAsync("The bee, of course, flies anyway"
-                                   + "because bees don't care what humans think is impossible.", true);
+                                   + " because bees don't care what humans think is impossible.", true);
         await e.Message.RespondAsync("Yellow, black. Yellow, black. Yellow, black. Yellow, black."
-                                   + "Ooh, black and yellow!"
-                                   + "Let's shake it up a little.", true);
+                                   + " Ooh, black and yellow!"
+                                   + " Let's shake it up a little.", true);
       }
     }
 

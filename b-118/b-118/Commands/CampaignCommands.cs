@@ -18,7 +18,7 @@ namespace b_118.Commands
 
     public CampaignCommands() : base()
     {
-      _prefix = new CustomPrefix("campaign");
+      _prefix = new CustomPrefix("b-campaign");
     }
 
     private void CheckPermissions(CommandContext ctx)
@@ -137,7 +137,7 @@ namespace b_118.Commands
     }
 
     [Command("create")]
-    [RequirePrefixes("campaign")]
+    [RequirePrefixes("b-campaign")]
     [RequireRoles(RoleCheckMode.All, "DM")]
     [Description("Create a new campaign. Requires the DM role.")]
     public async Task CreateCampaign(CommandContext ctx, [Description("Name of the campaign.")] string name, [Description("Color used for the role.")] DiscordColor? color = null, [Description("Channels to exclude from the category.")] params string[] excludeChannels)
@@ -167,7 +167,7 @@ namespace b_118.Commands
     }
 
     [Command("create")]
-    [RequirePrefixes("campaign")]
+    [RequirePrefixes("b-campaign")]
     [RequireRoles(RoleCheckMode.All, "DM")]
     [Hidden]
     public async Task CreateCampaign(CommandContext ctx, string name, params string[] excludeChannels)
@@ -177,7 +177,7 @@ namespace b_118.Commands
 
     [Command("invite")]
     [RequireRoles(RoleCheckMode.All, "DM")]
-    [RequirePrefixes("campaign")]
+    [RequirePrefixes("b-campaign")]
     [Description("Invite a user to a campaign.")]
     public async Task InviteToCampaign(CommandContext ctx, [Description("Name of the campaign.")] string name, [Description("Member to invite.")] DiscordMember member)
     {
@@ -234,7 +234,7 @@ namespace b_118.Commands
     }
 
     [Command("join")]
-    [RequirePrefixes("campaign")]
+    [RequirePrefixes("b-campaign")]
     [Description("Request to join a campaign.")]
     public async Task JoinCampaign(CommandContext ctx, [Description("Name of the campaign to join.")] string name)
     {
@@ -286,7 +286,7 @@ namespace b_118.Commands
 
     [Command("remove")]
     [RequireRoles(RoleCheckMode.All, "DM")]
-    [RequirePrefixes("campaign")]
+    [RequirePrefixes("b-campaign")]
     [Description("Remove a user from a campaign.")]
     public async Task RemoveFromCampaign(CommandContext ctx, [Description("Name of the campaign to remove a member from.")] string name, [Description("The member to remove.")] DiscordMember member, [Description("Whether or not to disallow this member from requesting to join again.")] bool bar = false)
     {
@@ -309,7 +309,7 @@ namespace b_118.Commands
     }
 
     [Command("leave")]
-    [RequirePrefixes("campaign")]
+    [RequirePrefixes("b-campaign")]
     [Description("Leave a campaign.")]
     public async Task LeaveCampaign(CommandContext ctx, [Description("Name of the campaign to leave.")] string name, [Description("Whether or not to disallow future invites to this campaign.")] bool bar = false)
     {
@@ -341,7 +341,7 @@ namespace b_118.Commands
 
     [Command("delete")]
     [RequireRoles(RoleCheckMode.All, "DM")]
-    [RequirePrefixes("campaign")]
+    [RequirePrefixes("b-campaign")]
     [Description("Delete a campaign.")]
     public async Task DeleteCampaign(CommandContext ctx, [Description("Name of the campaign to delete.")] string name)
     {
@@ -372,7 +372,7 @@ namespace b_118.Commands
 
     [Command("rename")]
     [RequireRoles(RoleCheckMode.All, "DM")]
-    [RequirePrefixes("campaign")]
+    [RequirePrefixes("b-campaign")]
     [Description("Rename a campaign.")]
     public async Task RenameCampaign(CommandContext ctx, [Description("Name of the campaign to rename.")] string currentName, [Description("New name for the campaign.")] string nextName)
     {
