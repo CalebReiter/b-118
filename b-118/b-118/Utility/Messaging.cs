@@ -104,7 +104,12 @@ namespace b_118.Utility
       return RespondEmbed(DEFAULT_DELETE, timeout);
     }
 
-    public Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(bool delete, TimeSpan timeout)
+    public Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(bool delete = true, bool deleteResponse = true)
+    {
+      return RespondEmbed(delete, DEFAULT_TIMEOUT, deleteResponse);
+    }
+
+    public Func<string, DiscordEmbed, Task<DiscordMessage>> RespondEmbed(bool delete, TimeSpan timeout, bool deleteResponse = true)
     {
       return async (content, embed) =>
       {
@@ -117,7 +122,7 @@ namespace b_118.Utility
         else
         {
             response = await _message.RespondAsync(content, false, embed);
-            await DeleteMessages(response, delete, timeout);
+            await DeleteMessages(response, delete, timeout, deleteResponse);
         }
         return response;
       };

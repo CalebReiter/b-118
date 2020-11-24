@@ -30,6 +30,38 @@ namespace b_118.Commands
       COMMAND_TYPES.Add(board._prefix._prefix, board.GetType());
     }
 
+    [Command("quote")]
+    [RequirePrefixes("b.")]
+    [Description("Quote a user.")]
+    public async Task Quote(CommandContext ctx, [Description("ID of message to quote.")] ulong message_id)
+    {
+            Messaging messaging = new Messaging(ctx);
+            IReadOnlyDictionary<ulong, DiscordChannel> channels = ctx.Guild.Channels;
+            bool found = false;
+            foreach (KeyValuePair<ulong, DiscordChannel> pair in channels)
+            {
+                DiscordChannel channel = pair.Value;
+                try
+                {
+                    DiscordMessage message = await channel.GetMessageAsync(message_id);
+                    DiscordEmbed embed = new DiscordEmbedBuilder()
+                        .WithAuthor(message.Author.Username, null, message.Author.GetAvatarUrl(DSharpPlus.ImageFormat.Auto))
+                        .WithDescription(message.Content)
+                        .WithColor(0xFFFF01)
+                        .Build();
+                    await messaging.RespondEmbed(true, false)("", embed);
+                    found = true;
+                    continue;
+                } catch (Exception)
+                {
+                }
+            }
+            if (!found)
+            {
+                await messaging.RespondContent(true)("Message was not found.");
+            }
+        }
+
     /// <summary>
     /// This command will change in the future. Just testing executing a command from an argument.
     /// Preferably the flow will be that a user will first save an alias with a name,
